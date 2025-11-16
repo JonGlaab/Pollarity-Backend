@@ -40,7 +40,7 @@ User.hasMany(Submission, { foreignKey: 'user_id' });
 Submission.belongsTo(User, { foreignKey: 'user_id' });
 
 // Submission <-> Response (One-to-Many)
-// A Submission (one session) has many Responses.
+// A Submission has many Responses.
 // A Response belongs to one Submission.
 Submission.hasMany(Response, { foreignKey: 'submission_id' });
 Response.belongsTo(Submission, { foreignKey: 'submission_id' });
@@ -55,8 +55,6 @@ Response.belongsTo(Question, { foreignKey: 'question_id' });
 // A Response belongs to one selected Option (if not short_answer).
 Option.hasMany(Response, { foreignKey: 'selected_option_id' });
 Response.belongsTo(Option, { foreignKey: 'selected_option_id' });
-
-// 3. Define Composite Indexes from your proposal
 
 Question.addIndex({
     name: 'survey_id_question_order_idx',
