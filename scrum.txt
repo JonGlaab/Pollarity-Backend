@@ -5,7 +5,7 @@ Minh
   What impediments are blocking me? other classes
 
 Jonathan
-  What did I do yesterday? astract thought
+  What did I do yesterday? abstract thought
   What will I do today? start scrum, (sorry)
   What impediments are blocking me? hubris
 
@@ -18,17 +18,17 @@ Elizabeth
 Minh
   What did I do yesterday? started the backend 
   What will I do today? set up the models
-  What impediments are blocking me? preping for exam
+  What impediments are blocking me? prepping for exam
 
 Jonathan
   What did I do yesterday? set up the git repos
   What will I do today? start some kanban stories
-  What impediments are blocking me? preping for exam
+  What impediments are blocking me? prepping for exam
 
 Elizabeth
   What did I do yesterday? exam
   What will I do today? update the doc
-  What impediments are blocking me? preping for exam
+  What impediments are blocking me? prepping for exam
 
 2025-11-18
 Minh
