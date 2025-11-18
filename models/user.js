@@ -3,14 +3,7 @@ const sequelize = require('../config/db');
 const bcrypt = require('bcrypt');
 
 const User = sequelize.define('User', {
-    hooks:{
-        beforeCreate : async (User) => {
-            if (User.password){
-                const salt = await bcrypt.genSalt(8);
-                User.password = await bcrypt.hash(User.password, salt);
-            }
-        }
-    },
+
     user_id:{
         type: DataTypes.INTEGER,
         primaryKey: true,
@@ -35,6 +28,16 @@ const User = sequelize.define('User', {
         unique: true,
         isEmail: true
     },
+    google_id:{
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+    },
+    facebook_id:{
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+    },
     age:{
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -58,7 +61,14 @@ const User = sequelize.define('User', {
         defaultValue:'user',
         allowNull: false,
     }
-},{
+},{hooks:{
+    beforeCreate : async (User) => {
+        if (User.password){
+            const salt = await bcrypt.genSalt(8);
+            User.password = await bcrypt.hash(User.password, salt);
+        }
+    }
+}},{
     tableName: 'users',
     timestamps: false,
 });

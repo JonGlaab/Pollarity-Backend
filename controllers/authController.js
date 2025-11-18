@@ -60,15 +60,20 @@ exports.loginUser = async (req, res) => {
         }
         const payload= {
             user:{
-                user_id:user.id,
+                user_id:user.user_id,
                 role:user.role,
             }
         }
-        jwt.sign(payload, process.env.JWT_SECRET, (err, token) => {
+        jwt.sign(payload, process.env.JWT_SECRET,{ expiresIn: "1h"}, (err, token) => {
             if(err){
                 throw err;
             }
-            res.status(200).json({token:token});
+            res.cookie("token",token,{
+                httpOnly:true,
+                secure:true,
+                maxAge: 3600000,
+                signed:true
+            })
         })
     }catch(err){
         console.error(err);
