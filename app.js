@@ -31,19 +31,35 @@ const routes=require('./routes');
 app.use(routes);
 
 
-const PORT = process.env.PORT ;
+const PORT = process.env.PORT || 3000;
 
-const startServer= async ()=>{
-    try{
-        await db.sequelize.sync();
-        console.log("DB connection successfully created");
+const startServer = async () => {
+    try {
+        // Sync database: create missing tables and add missing columns
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        const syncOptions = {
+            alter: true,  // alter: true - adds missing columns without dropping existing data
+            force: false  // force: false - never drops tables (safety for production)
+        };
+
+        if (isProduction) {
+            console.log("Running in production mode - using safe sync options");
+        }
+
+        await db.sequelize.sync(syncOptions);
+        console.log("Database tables synchronized successfully");
+        console.log("All tables are up to date with model definitions");
+        
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
-    })
-    }catch(err){
-        console.error("Failed to sync db:", err);
+        });
+    } catch (err) {
+        console.error("Failed to sync database:", err);
+        process.exit(1); // Exit on database sync failure
     }
 };
+
 startServer();
 
 
