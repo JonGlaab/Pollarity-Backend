@@ -31,6 +31,7 @@ const startServer = async () => {
         });
     } catch (err) {
         console.error("Failed to sync db:", err);
+        process.exit(1);
     }
 };
 

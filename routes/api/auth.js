@@ -17,7 +17,7 @@ router.post('/register', [
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, first_name, last_name } = req.body;
+    const { email, password, first_name, last_name, confirmPassword } = req.body;
 
     try {
         const existingUser = await User.findOne({ where: { email } });
@@ -28,6 +28,7 @@ router.post('/register', [
         const newUser = await User.create({
             email,
             password,
+            confirmPassword,
             first_name,
             last_name
         });
@@ -35,6 +36,9 @@ router.post('/register', [
         const token = generateToken(newUser);
         res.status(201).json({ token });
     } catch (error) {
+        if (error.name === 'SequelizeValidationError') {
+            return res.status(400).json({ message: error.errors.map(e => e.message).join(', ') });
+        }
         res.status(500).json({ message: 'Server error' });
     }
 });

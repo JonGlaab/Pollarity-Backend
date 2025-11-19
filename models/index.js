@@ -56,18 +56,8 @@ Response.belongsTo(Question, { foreignKey: 'question_id' });
 Option.hasMany(Response, { foreignKey: 'selected_option_id' });
 Response.belongsTo(Option, { foreignKey: 'selected_option_id' });
 
-Question.addIndex({
-    name: 'survey_id_question_order_idx',
-    fields: ['survey_id', 'question_order']
-});
-
-
-Option.addIndex({
-    name: 'question_id_option_order_unique_idx',
-    fields: ['question_id', 'option_order'],
-    unique: true
-});
-
+// Note: Indexes are defined in the model definitions (question.js and option.js)
+// They will be created automatically when the database is synced
 
 const db = {
     sequelize,

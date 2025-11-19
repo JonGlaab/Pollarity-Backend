@@ -19,7 +19,14 @@ const Option = sequelize.define('Option', {
     }
 }, {
     tableName: 'options',
-    timestamps: false
+    timestamps: false,
+    indexes: [
+        {
+            name: 'question_id_option_order_unique_idx',
+            fields: ['question_id', 'option_order'],
+            unique: true
+        }
+    ]
 });
 
 module.exports = Option;
