@@ -45,6 +45,20 @@ const User = sequelize.define('User', {
             len: [8, 20],
         }
     },
+    passwordConfirmation: {
+      type: DataTypes.VIRTUAL,
+      set : function (value) {
+          this.setDataValue('password', value);
+
+      },
+      validate :{
+          isEmail : function (value) {
+              if (this.password !== value) {
+                  throw new Error('Password confirmation does not match password.');
+              }
+          }
+      }
+    },
     isBanned:{
         type: DataTypes.BOOLEAN,
         defaultValue: false

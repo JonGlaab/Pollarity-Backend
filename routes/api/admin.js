@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateJWT, isAdmin, checkBanned } = require('../middleware/auth');
-const User = require('../models/user');
+const { authenticateJWT, isAdmin, checkBanned } = require('../../middleware/auth');
+const User = require('../../models/user');
 
 router.post('/ban/:userId', [authenticateJWT, checkBanned, isAdmin], async (req, res) => {
     try {

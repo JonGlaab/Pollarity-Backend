@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const passport = require('passport');
-const { generateToken } = require('../utils/jwt');
+const { generateToken } = require('../../utils/jwt');
 const { check, validationResult } = require('express-validator');
-const User = require('../models/user');
+const User = require('../../models/user');
 
 
 router.post('/register', [

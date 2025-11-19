@@ -1,7 +1,7 @@
 
 const router = require('express').Router();
 const db = require('../../models');
-const authMiddleware = require('../../middleware/authMiddleware');
+const authMiddleware = require('../../middleware/auth');
 const { Survey, Question, Option, sequelize } = db;
 
 // Utility to generate a nice_url (UUID-like, 32 chars long)
