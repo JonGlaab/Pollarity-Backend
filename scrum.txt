@@ -48,9 +48,41 @@ Elizabeth
   
 2025-09-19
 Minh
-  What did I do yesterday? login and register
-  What will I do today? still login and register
-  What impediments are blocking me? nothing
+  What did I do yesterday? Login and registration. Researched passport.js.
+  What will I do today? Finishing login and registration.
+  What impediments are blocking me? No issues.
+
+Jonathan
+  What did I do yesterday? Worked on front-end registration. Set up an email address to use from website.
+  What will I do today? Continue to work on registration UI.
+  What impediments are blocking me? Difficulty with front end.
+
+Elizabeth
+  What did I do yesterday? Hosting setup.
+  What will I do today? Continue working on the survey create form.
+  What impediments are blocking me? Web hosting setup too waaaaay longer than intended.
+
+2025-09-20
+Minh
+  What did I do yesterday?
+  What will I do today?
+  What impediments are blocking me?
+
+Jonathan
+  What did I do yesterday?
+  What will I do today?
+  What impediments are blocking me?
+
+Elizabeth
+  What did I do yesterday?
+  What will I do today?
+  What impediments are blocking me?
+
+2025-09-21
+  Minh
+  What did I do yesterday?
+  What will I do today?
+  What impediments are blocking me?
 
 Jonathan
   What did I do yesterday?
