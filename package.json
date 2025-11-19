@@ -1,23 +1,26 @@
 {
   "name": "pollarity-backend",
   "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "",
+  "keywords": [],
+  "homepage": "https://github.com/JonGlaab/Pollarity-Backend#readme",
+  "bugs": {
+    "url": "https://github.com/JonGlaab/Pollarity-Backend/issues"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JonGlaab/Pollarity-Backend.git"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/JonGlaab/Pollarity-Backend/issues"
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "homepage": "https://github.com/JonGlaab/Pollarity-Backend#readme",
-  "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.934.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

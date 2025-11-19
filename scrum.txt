@@ -1,0 +1,63 @@
+2025-11-13
+Minh
+  What did I do yesterday? hustled
+  What will I do today? planning
+  What impediments are blocking me? other classes
+
+Jonathan
+  What did I do yesterday? abstract thought
+  What will I do today? start scrum, (sorry)
+  What impediments are blocking me? hubris
+
+Elizabeth
+  What did I do yesterday? planning
+  What will I do today? look up hosting 
+  What impediments are blocking me? nothing ever
+
+2025-09-16
+Minh
+  What did I do yesterday? started the backend 
+  What will I do today? set up the models
+  What impediments are blocking me? prepping for exam
+
+Jonathan
+  What did I do yesterday? set up the git repos
+  What will I do today? start some kanban stories
+  What impediments are blocking me? prepping for exam
+
+Elizabeth
+  What did I do yesterday? exam
+  What will I do today? update the doc
+  What impediments are blocking me? prepping for exam
+
+2025-11-18
+Minh
+  What did I do yesterday? exam
+  What will I do today? set up login and register
+  What impediments are blocking me?
+
+Jonathan
+  What did I do yesterday? exam
+  What will I do today? more stories and some front end placeholders
+  What impediments are blocking me?
+
+Elizabeth
+  What did I do yesterday? exam
+  What will I do today? set up the hosting
+  What impediments are blocking me?
+  
+2025-09-19
+Minh
+  What did I do yesterday?
+  What will I do today?
+  What impediments are blocking me?
+
+Jonathan
+  What did I do yesterday?
+  What will I do today?
+  What impediments are blocking me?
+
+Elizabeth
+  What did I do yesterday?
+  What will I do today?
+  What impediments are blocking me?
