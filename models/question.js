@@ -28,7 +28,13 @@ const Question = sequelize.define('Question', {
     }
 }, {
     tableName: 'questions',
-    timestamps: false
+    timestamps: false,
+    indexes: [
+        {
+            name: 'survey_id_question_order_idx',
+            fields: ['survey_id', 'question_order']
+        }
+    ]
 });
 
 module.exports = Question;
