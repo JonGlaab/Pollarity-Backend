@@ -1,85 +1,144 @@
-const db= require('../models');
-const User = db.User;
-
-
-
-exports.registerUser = async (req, res) => {
-    try{
-        let {first_name, last_name, email, password,age,user_photo_url,agreedToTerms} = req.body;
-        //Validation
-        const existingUser= await User.findOne({where : { email : email}})
-        if(existingUser){
-            return res.status(400).send({error: 'User already exists'});
-        }
-        if(!agreedToTerms){
-            return res.status(400).send({error: 'You must agree to the Terms of Service'});
-        }
-
-        const createField ={
-            first_name: first_name,
-            last_name: last_name,
-            email: email,
-            password: password,
-            age: age,
-
-        };
-        if (user_photo_url){
-            createField.user_photo_url = user_photo_url;
-        }
-        await User.create(createField);
-        return res.status(201).send({message:"User successfully registered"});
-
-    }catch(err){
-        if (err.name === 'SequelizeValidationError') {
-            const errors = err.errors.map((err) => err.message);
-            return res.status(400).send({errors: errors});
-        }
-        console.error(err);
-        return res.status(500).send({error: 'Something went wrong'});
-
-    }
-
-
-
-}
+const passport = require('passport');
+const User = require('../models/user');
+const { check, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-exports.loginUser = async (req, res) => {
-    try{
-        const {email, password} = req.body;
-        const user= await User.findOne({where : {email:email}});
-        if(!user){
-            return res.status(401).send({error: 'Invalid email or password'});
+
+const generateJwtToken = (user) => {
+    const payload = {
+        id: user.user_id,
+        email: user.email,
+        role: user.role
+    };
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+};
+
+
+exports.register = [
+    check('email').isEmail().withMessage('Please enter a valid email address.'),
+    check('password').isLength({ min: 8, max: 20 }).withMessage('Password must be between 8 and 20 characters.'),
+    check('first_name').not().isEmpty().withMessage('First name is required.'),
+    check('last_name').not().isEmpty().withMessage('Last name is required.'),
+
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
         }
-        if (user.isBanned){
-            return res.status(403).send({error: 'This account has been suspended'});
-        }
-        const matchPassword= await bcrypt.compare(password, user.password);
-        if(!matchPassword){
-            return res.status(401).send({error: 'Invalid email or password'});
-        }
-        const payload= {
-            user:{
-                user_id:user.user_id,
-                role:user.role,
+
+        const { email, password, first_name, last_name } = req.body;
+
+        try {
+            let user = await User.findOne({ where: { email } });
+            if (user) {
+                return res.status(400).json({ message: 'User already exists' });
             }
+
+            user = await User.create({
+                email,
+                password,
+                first_name,
+                last_name
+            });
+
+            const token = generateJwtToken(user);
+            res.status(201).json({ token });
+
+        } catch (error) {
+            res.status(500).json({ message: 'Server error', error: error.message });
         }
-        jwt.sign(payload, process.env.JWT_SECRET,{ expiresIn: "1h"}, (err, token) => {
-            if(err){
-                throw err;
-            }
-            res.cookie("token",token,{
-                httpOnly:true,
-                secure:true,
-                maxAge: 3600000,
-                signed:true
-            })
-        })
-    }catch(err){
-        console.error(err);
-        res.status(500).send({error: 'Something went wrong'});
     }
-}
-exports.logoutUser = async (req, res) => {
-    res.status(200).send({message:"User logged out"});
-}
+];
+
+exports.login = (req, res, next) => {
+    passport.authenticate('local', { session: false }, (err, user, info) => {
+        if (err) {
+            return next(err);
+        }
+        if (!user) {
+            return res.status(400).json({ message: info.message });
+        }
+        const token = generateJwtToken(user);
+        return res.json({ token });
+    })(req, res, next);
+};
+
+exports.googleLogin = passport.authenticate('google', { scope: ['profile', 'email'] });
+
+exports.googleCallback = (req, res, next) => {
+    passport.authenticate('google', { session: false }, (err, user, info) => {
+        if (err) {
+            return next(err);
+        }
+        if (!user) {
+            return res.redirect('/login');
+        }
+
+        if (!user.first_name || !user.last_name) {
+            const registrationToken = jwt.sign({ temp_id: user.id, provider: 'google' }, process.env.JWT_SECRET, { expiresIn: '15m' });
+            return res.redirect(`/complete-registration?token=${registrationToken}`);
+        }
+
+        const token = generateJwtToken(user);
+        res.redirect(`/?token=${token}`);
+    })(req, res, next);
+};
+
+
+exports.facebookLogin = passport.authenticate('facebook', { scope: ['email'] });
+
+exports.facebookCallback = (req, res, next) => {
+    passport.authenticate('facebook', { session: false }, (err, user, info) => {
+        if (err) {
+            return next(err);
+        }
+        if (!user) {
+            return res.redirect('/login');
+        }
+
+        if (!user.first_name || !user.last_name) {
+            const registrationToken = jwt.sign({ temp_id: user.id, provider: 'facebook' }, process.env.JWT_SECRET, { expiresIn: '15m' });
+            return res.redirect(`/complete-registration?token=${registrationToken}`);
+        }
+
+        const token = generateJwtToken(user);
+        res.redirect(`/?token=${token}`);
+    })(req, res, next);
+};
+
+exports.completeRegistration = [
+    check('first_name').not().isEmpty().withMessage('First name is required.'),
+    check('last_name').not().isEmpty().withMessage('Last name is required.'),
+
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        try {
+            const { token, first_name, last_name } = req.body;
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+            let user;
+            if (decoded.provider === 'google') {
+                user = await User.findOne({where: {google_id: decoded.temp_id}});
+            } else if (decoded.provider === 'facebook') {
+                user = await User.findOne({where: {facebook_id: decoded.temp_id}});
+            }
+
+            if (!user) {
+                return res.status(404).json({ message: 'User not found.' });
+            }
+
+            user.first_name = first_name;
+            user.last_name = last_name;
+            await user.save();
+
+            const jwtToken = generateJwtToken(user);
+            res.status(200).json({ token: jwtToken });
+
+        } catch (error) {
+            res.status(500).json({ message: 'Server error or invalid token', error: error.message });
+        }
+    }
+];

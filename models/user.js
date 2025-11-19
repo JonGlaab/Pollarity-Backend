@@ -38,38 +38,43 @@ const User = sequelize.define('User', {
         allowNull: true,
         unique: true,
     },
-    age:{
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        validate: {
-            min:16
-        }
-    },
     password: {
         type: DataTypes.STRING(255),
-        allowNull: false,
-        minLength: 8,
-        maxLength: 20,
-
+        allowNull: true,
+        validate: {
+            len: [8, 20],
+        }
     },
     isBanned:{
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
-    role_id:{
+    role:{
         type: DataTypes.ENUM('admin','user'),
         defaultValue:'user',
         allowNull: false,
     }
-},{hooks:{
-    beforeCreate : async (User) => {
-        if (User.password){
-            const salt = await bcrypt.genSalt(8);
-            User.password = await bcrypt.hash(User.password, salt);
-        }
-    }
-}},{
+}, {
     tableName: 'users',
     timestamps: false,
+    hooks: {
+        beforeValidate: (user) => {
+
+            if (!user.google_id && !user.facebook_id && !user.password) {
+                throw new Error('Password is required for local accounts.');
+            }
+        },
+        beforeCreate: async (user) => {
+            if (user.password) {
+                const salt = await bcrypt.genSalt(10);
+                user.password = await bcrypt.hash(user.password, salt);
+            }
+        }
+    }
 });
+
+User.prototype.validPassword = async function(password) {
+    return await bcrypt.compare(password, this.password);
+};
+
 module.exports = User;

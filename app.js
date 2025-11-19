@@ -1,49 +1,37 @@
-const env=require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
-const cookieParser = require('cookie-parser');
 const passport = require('passport');
-const session = require('express-session');
 const db = require('./models');
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-
 app.use(express.json());
-app.use(cookieParser(process.env.COOKIE_SECRET));
+app.use(express.urlencoded({ extended: true }));
 
 
-app.use(session({
-    secret: process.env.COOKIE_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie:{
-        httpOnly: true,
-        secure: process.env.COOKIE_SECRET,
-        maxAge: 300000
-    }
-}))
 app.use(passport.initialize());
-app.use(passport.session());
 
-require('./config/passport')(passport);
+// Passport config
+require('./config/passport');
 
-const routes=require('./routes');
-app.use(routes);
+// Routes
+app.use('/auth', authRoutes);
+app.use('/admin', adminRoutes);
 
+const PORT = process.env.PORT || 5000;
 
-const PORT = process.env.PORT ;
-
-const startServer= async ()=>{
-    try{
+const startServer = async () => {
+    try {
         await db.sequelize.sync();
         console.log("DB connection successfully created");
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
-    })
-    }catch(err){
+        });
+    } catch (err) {
         console.error("Failed to sync db:", err);
     }
 };
+
 startServer();
-
-
