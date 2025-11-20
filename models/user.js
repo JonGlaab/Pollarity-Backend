@@ -1,6 +1,7 @@
 const {DataTypes} = require('sequelize');
 const sequelize = require('../config/db');
 const bcrypt = require('bcrypt');
+const { sendWelcomeEmail } = require('../services/emailService');
 
 const User = sequelize.define('User', {
 
@@ -82,6 +83,13 @@ const User = sequelize.define('User', {
             if (user.password) {
                 const salt = await bcrypt.genSalt(10);
                 user.password = await bcrypt.hash(user.password, salt);
+            }
+        },
+        afterCreate: async (user, options) => {
+            try {
+                await sendWelcomeEmail(user.email, user.first_name);
+            } catch (error) {
+                console.error('Failed to send welcome email:', error);
             }
         }
     }
