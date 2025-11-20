@@ -64,19 +64,19 @@ Elizabeth
 
 2025-09-20
 Minh
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? Login with Google.
+  What will I do today? Connect google login to front end. Dashboard for users to see their created surveys and survey results.
+  What impediments are blocking me? Think about how data should be aggregated.
 
 Jonathan
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? Register page. Started researching front end UI.
+  What will I do today? Working on themes and UI design.
+  What impediments are blocking me? Researching Figma option.
 
 Elizabeth
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? Worked on survey builder.
+  What will I do today? Continue survey builder and option to change order of the questions. Connection to backend.
+  What impediments are blocking me? Bugs.
 
 2025-09-21
   Minh
