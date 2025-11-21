@@ -1,16 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const mockAuth = require('../../middleware/mockAuth');
-//const { authenticateJWT, isAdmin, checkBanned } = require('../../middleware/auth');
-const { isAdmin, checkBanned } = require('../../middleware/auth');
+const { authenticateJWT, isAdmin, checkBanned } = require('../../middleware/auth');
 
 const User = require('../../models/user');
 
-//router.post('/ban/:userId', [authenticateJWT, checkBanned, isAdmin], async (req, res) => {
-
-router.post('/ban/:userId', [mockAuth, checkBanned, isAdmin], async (req, res) => {
-    try {
+router.post('/ban/:userId', [authenticateJWT, checkBanned, isAdmin], async (req, res) => {
+   try {
         const user = await User.findByPk(req.params.userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });

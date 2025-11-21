@@ -1,20 +1,19 @@
-// const passport = require('passport');
-// const User = require('../models/user');
-//
-// const authenticateJWT = (req, res, next) => {
-//     passport.authenticate('jwt', { session: false }, (err, user, info) => {
-//         if (err) {
-//             return next(err);
-//         }
-//         if (!user) {
-//             return res.status(401).json({ message: 'Unauthorized' });
-//         }
-//         req.user = user;
-//         next();
-//     })(req, res, next);
-// };
+const passport = require('passport');
+const User = require('../models/user');
 
-const mockAuth = require("./mockAuth");
+const authenticateJWT = (req, res, next) => {
+    passport.authenticate('jwt', { session: false }, (err, user, info) => {
+        if (err) {
+            return next(err);
+        }
+        if (!user) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+        req.user = user;
+        next();
+    })(req, res, next);
+};
+
 const isAdmin = (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -36,8 +35,7 @@ const checkBanned = (req, res, next) => {
 };
 
 module.exports = {
-    //authenticateJWT,
-    mockAuth,
+    authenticateJWT,
     isAdmin,
     checkBanned
 };
