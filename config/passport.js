@@ -55,34 +55,34 @@ passport.use(new GoogleStrategy({
 }));
 
 // Facebook Strategy
-passport.use(new FacebookStrategy({
-    clientID: process.env.FACEBOOK_APP_ID,
-    clientSecret: process.env.FACEBOOK_APP_SECRET,
-    callbackURL: '/auth/facebook/callback',
-    profileFields: ['id', 'emails', 'name']
-}, async (accessToken, refreshToken, profile, done) => {
-    try {
-        const existingUser = await User.findOne({ where: { facebook_id: profile.id } });
-        if (existingUser) {
-            return done(null, existingUser);
-        }
-        const existingEmailUser = await User.findOne({ where: { email: profile.emails[0].value } });
-        if (existingEmailUser) {
-            existingEmailUser.facebook_id = profile.id;
-            await existingEmailUser.save();
-            return done(null, existingEmailUser);
-        }
-        const newUser = await User.create({
-            facebook_id: profile.id,
-            email: profile.emails[0].value,
-            first_name: profile.name.givenName,
-            last_name: profile.name.familyName,
-        });
-        return done(null, newUser);
-    } catch (err) {
-        return done(err);
-    }
-}));
+// passport.use(new FacebookStrategy({
+//     clientID: process.env.FACEBOOK_APP_ID,
+//     clientSecret: process.env.FACEBOOK_APP_SECRET,
+//     callbackURL: '/auth/facebook/callback',
+//     profileFields: ['id', 'emails', 'name']
+// }, async (accessToken, refreshToken, profile, done) => {
+//     try {
+//         const existingUser = await User.findOne({ where: { facebook_id: profile.id } });
+//         if (existingUser) {
+//             return done(null, existingUser);
+//         }
+//         const existingEmailUser = await User.findOne({ where: { email: profile.emails[0].value } });
+//         if (existingEmailUser) {
+//             existingEmailUser.facebook_id = profile.id;
+//             await existingEmailUser.save();
+//             return done(null, existingEmailUser);
+//         }
+//         const newUser = await User.create({
+//             facebook_id: profile.id,
+//             email: profile.emails[0].value,
+//             first_name: profile.name.givenName,
+//             last_name: profile.name.familyName,
+//         });
+//         return done(null, newUser);
+//     } catch (err) {
+//         return done(err);
+//     }
+// }));
 
 // JWT Strategy
 const opts = {

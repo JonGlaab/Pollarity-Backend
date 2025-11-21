@@ -53,6 +53,9 @@ app.use(passport.session());
 require('./config/passport');
 
 // Routes
+app.get('/', (req, res) => {
+    res.send('Pollarity API is running 🚀');
+});
 app.use('/api', routes);
 
 
