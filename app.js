@@ -3,8 +3,26 @@ const express = require('express');
 const passport = require('passport');
 const db = require('./models');
 const routes = require('./routes');
+const cors = require('cors');
 
 const app = express();
+
+// --- CORS Configuration ---
+const corsOptions = {
+    // Allow requests from your local React development server (port 3000)
+    origin: 'http://localhost:3000',
+
+    // Allow credentials (cookies/JWTs) to be sent, which your login/auth needs
+    credentials: true,
+
+    // Allow the necessary methods and headers
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type,Authorization',
+};
+
+// Use the CORS middleware before any routes
+app.use(cors(corsOptions));
+// --------------------------
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

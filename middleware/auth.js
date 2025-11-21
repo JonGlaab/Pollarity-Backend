@@ -1,20 +1,24 @@
-const passport = require('passport');
-const User = require('../models/user');
+// const passport = require('passport');
+// const User = require('../models/user');
+//
+// const authenticateJWT = (req, res, next) => {
+//     passport.authenticate('jwt', { session: false }, (err, user, info) => {
+//         if (err) {
+//             return next(err);
+//         }
+//         if (!user) {
+//             return res.status(401).json({ message: 'Unauthorized' });
+//         }
+//         req.user = user;
+//         next();
+//     })(req, res, next);
+// };
 
-const authenticateJWT = (req, res, next) => {
-    passport.authenticate('jwt', { session: false }, (err, user, info) => {
-        if (err) {
-            return next(err);
-        }
-        if (!user) {
-            return res.status(401).json({ message: 'Unauthorized' });
-        }
-        req.user = user;
-        next();
-    })(req, res, next);
-};
-
+const mockAuth = require("./mockAuth");
 const isAdmin = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Forbidden: Admins only' });
     }
@@ -22,6 +26,9 @@ const isAdmin = (req, res, next) => {
 };
 
 const checkBanned = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
     if (req.user.isBanned) {
         return res.status(403).json({ message: 'Account suspended' });
     }
@@ -29,7 +36,8 @@ const checkBanned = (req, res, next) => {
 };
 
 module.exports = {
-    authenticateJWT,
+    //authenticateJWT,
+    mockAuth,
     isAdmin,
     checkBanned
 };
