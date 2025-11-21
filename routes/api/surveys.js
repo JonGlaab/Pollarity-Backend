@@ -1,8 +1,10 @@
 const router = require('express').Router();
 const db = require('../../models');
 const { authenticateJWT } = require('../../middleware/auth');
+const { Parser } = require('json2csv');
+const ExcelJS = require('exceljs');
 
-const { Survey, Question, Option, sequelize } = db;
+const { Survey, Question, Option, Submission, Response, sequelize } = db;
 
 // Utility to generate a nice_url (UUID-like, 32 chars long)
 const { v4: uuidv4 } = require('uuid');
@@ -76,6 +78,59 @@ router.post('/', authenticateJWT, async (req, res) => {
     }
 });
 
+// GET /api/surveys/participated: Fetch current user's history
+router.get('/participated', [authenticateJWT, authMiddleware.checkBanned], async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+
+        const submissions = await Submission.findAll({
+            where: { user_id: userId },
+            include: [
+                {
+                    model: Survey,
+                    attributes: ['title', 'description', 'nice_url', 'createdAt']
+                },
+                {
+                    model: Response,
+                    include: [
+                        {
+                            model: Question,
+                            attributes: ['question_text', 'question_type']
+                        },
+                        {
+                            model: Option,
+                            attributes: ['option_text']
+                        }
+                    ]
+                }
+            ],
+            order: [['submitted_at', 'DESC']]
+        });
+
+        // Format the data for the frontend
+        const history = submissions.map(sub => ({
+            submission_id: sub.submission_id,
+            date: sub.submitted_at,
+            survey_title: sub.Survey.title,
+            survey_desc: sub.Survey.description,
+            answers: sub.Responses.map(r => ({
+                question: r.Question.question_text,
+                type: r.Question.question_type,
+                // If it's multiple choice, get the option text; otherwise get the text response
+                response: ['multiple_choice', 'checkbox'].includes(r.Question.question_type)
+                    ? (r.Option ? r.Option.option_text : '(Option deleted)')
+                    : r.response_text
+            }))
+        }));
+
+        res.json(history);
+
+    } catch (error) {
+        console.error("Error fetching participation history:", error);
+        res.status(500).json({ error: "Failed to fetch your survey history." });
+    }
+});
+
 // GET /api/surveys: FETCH PUBLISHED SURVEYS (Home.js dependency)
 router.get('/', authenticateJWT, async (req, res) => {
     try {
@@ -89,6 +144,246 @@ router.get('/', authenticateJWT, async (req, res) => {
     } catch (error) {
         console.error("Error fetching surveys:", error);
         return res.status(500).json({ error: "Failed to fetch surveys." });
+    }
+});
+// GET /api/surveys/:id/results: FETCH ANALYTICS
+router.get('/:id/results', authenticateJWT, async (req, res) => {
+    try {
+        const surveyId = req.params.id;
+        const userId = req.user.user_id;
+
+
+        const survey = await Survey.findOne({
+            where: { survey_id: surveyId },
+            include: [
+                {
+                    model: Question,
+                    include: [Option]
+                }
+            ]
+        });
+
+        if (!survey) {
+            return res.status(404).json({ error: "Survey not found" });
+        }
+
+
+        if (survey.creator_user_id !== userId) {
+            return res.status(403).json({ error: "Access denied. You are not the creator of this survey." });
+        }
+
+
+
+        const submissions = await Submission.findAll({
+            where: { survey_id: surveyId },
+            attributes: ['submitted_at'],
+            order: [['submitted_at', 'ASC']],
+            raw: true
+        });
+
+        const submissionDates = submissions.map(s => s.submitted_at);
+
+
+
+        const results = await Promise.all(survey.Questions.map(async (question) => {
+            const questionData = {
+                question_id: question.question_id,
+                question_text: question.question_text,
+                question_type: question.question_type,
+                answers: []
+            };
+
+            if (['multiple_choice', 'checkbox'].includes(question.question_type)) {
+
+                const optionCounts = await Response.findAll({
+                    attributes: [
+                        'selected_option_id',
+                        [sequelize.fn('COUNT', sequelize.col('response_id')), 'count']
+                    ],
+                    where: { question_id: question.question_id },
+                    group: ['selected_option_id'],
+                    raw: true
+                });
+
+
+                questionData.answers = question.Options.map(opt => {
+                    const found = optionCounts.find(c => c.selected_option_id === opt.option_id);
+                    return {
+                        option_text: opt.option_text,
+                        count: found ? parseInt(found.count) : 0
+                    };
+                });
+
+            } else if (question.question_type === 'short_answer') {
+                const textResponses = await Response.findAll({
+                    where: { question_id: question.question_id },
+                    attributes: ['response_text'],
+                    limit: 50,
+                    order: [['response_id', 'DESC']]
+                });
+                questionData.answers = textResponses.map(r => r.response_text);
+            }
+
+            return questionData;
+        }));
+
+        res.json({
+            survey: {
+                title: survey.title,
+                description: survey.description,
+                total_submissions: submissionDates.length,
+                createdAt: survey.createdAt,
+                submission_dates: submissionDates
+            },
+            results: results
+        });
+
+    } catch (error) {
+        console.error("Error fetching results:", error);
+        res.status(500).json({ error: "Failed to fetch survey results" });
+    }
+});
+
+//GET DATA TO EXPORT
+const fetchSurveyRawData = async (surveyId, userId, userRole) => {
+    const survey = await Survey.findOne({
+        where: { survey_id: surveyId },
+        include: [{ model: Question, order: [['question_order', 'ASC']] }]
+    });
+    if (!survey) {
+        throw new Error("Survey not found");
+    }
+    if (survey.creator_user_id !== userId ){
+        throw new Error("Access denied. You are not the creator of this survey.");
+    }
+    const submissions = await Submission.findAll({
+        where: { survey_id: surveyId },
+        include: [
+            {
+                model: Response,
+                include: [Option]
+            },
+            {
+                model: db.User,
+                attributes: ['email']
+            }
+        ],
+        order: [['submitted_at', 'DESC']]
+    });
+    return { survey, submissions };
+
+}
+
+//EXPORT TO CSV
+router.get('/:id/export/csv', [authMiddleware.authenticateJWT, authMiddleware.checkBanned], async (req, res) => {
+    try {
+
+        const { survey, submissions } = await fetchSurveyRawData(req.params.id, req.user.user_id);
+
+        if (submissions.length === 0) return res.status(400).json({ error: "No data to export" });
+
+        const dataToExport = submissions.map(sub => {
+            const row = {
+                "Submission ID": sub.submission_id,
+                "Date": new Date(sub.submitted_at).toLocaleDateString(),
+                "User": sub.User ? sub.User.email : "Anonymous"
+            };
+
+            survey.Questions.forEach(q => {
+                const responses = sub.Responses.filter(r => r.question_id === q.question_id);
+                let answerText = "";
+
+                if (responses.length > 0) {
+                    if (['multiple_choice', 'checkbox'].includes(q.question_type)) {
+                        answerText = responses.map(r => r.Option ? r.Option.option_text : "").join(", ");
+                    } else {
+                        answerText = responses[0].response_text || "";
+                    }
+                }
+                row[q.question_text] = answerText;
+            });
+            return row;
+        });
+
+        const fields = ["Submission ID", "Date", "User", ...survey.Questions.map(q => q.question_text)];
+        const parser = new Parser({ fields });
+        const csv = parser.parse(dataToExport);
+
+        res.header('Content-Type', 'text/csv');
+        res.attachment(`survey_${survey.survey_id}_results.csv`);
+        return res.send(csv);
+
+    } catch (error) {
+        console.error("CSV Export Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+//EXPORT TO EXCEL
+router.get('/:id/export/excel', [authMiddleware.authenticateJWT, authMiddleware.checkBanned], async (req, res) => {
+    try {
+
+        const { survey, submissions } = await fetchSurveyRawData(req.params.id, req.user.user_id);
+        if (submissions.length === 0) return res.status(400).json({ error: "No data to export" });
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Survey Grid');
+
+        // --- ROW 1: HEADERS (Metric + Response #1, Response #2...) ---
+        const headerRow = ['METRIC / QUESTION'];
+        submissions.forEach((_, index) => headerRow.push(`Response #${index + 1}`));
+
+        const row1 = worksheet.addRow(headerRow);
+        row1.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        row1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B263B' } }; // Brand Color
+
+        // --- METADATA ROWS (Date, User) ---
+        const dateRow = ['Submission Date'];
+        const userRow = ['User'];
+
+        submissions.forEach(sub => {
+            dateRow.push(new Date(sub.submitted_at).toLocaleDateString());
+            userRow.push(sub.User ? sub.User.email : "Anonymous");
+        });
+
+        worksheet.addRow(dateRow);
+        worksheet.addRow(userRow);
+        worksheet.addRow([]);
+
+        // --- QUESTION ROWS (Questions as Rows, Answers in Columns) ---
+        survey.Questions.forEach(q => {
+            const row = [q.question_text]; // Column A is the Question
+
+            submissions.forEach(sub => {
+                const responses = sub.Responses.filter(r => r.question_id === q.question_id);
+                let answerText = "";
+
+                if (responses.length > 0) {
+                    if (['multiple_choice', 'checkbox'].includes(q.question_type)) {
+                        answerText = responses.map(r => r.Option ? r.Option.option_text : "").join(", ");
+                    } else {
+                        answerText = responses[0].response_text || "";
+                    }
+                }
+                row.push(answerText);
+            });
+
+            const newRow = worksheet.addRow(row);
+            newRow.getCell(1).font = { bold: true }; // Bold the Question text
+        });
+
+        // Formatting: Auto-width for first column
+        worksheet.getColumn(1).width = 45;
+
+        res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.attachment(`survey_${survey.survey_id}_grid.xlsx`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (error) {
+        console.error("Excel Export Error:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 
