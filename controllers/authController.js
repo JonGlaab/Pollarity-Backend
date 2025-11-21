@@ -49,16 +49,44 @@ exports.register = [
     }
 ];
 
+//
+// exports.login = (req, res, next) => {
+//     passport.authenticate('local', { session: false }, (err, user, info) => {
+//         if (err) {
+//             return next(err);
+//         }
+//         if (!user) {
+//             return res.status(400).json({ message: info.message });
+//         }
+//         const token = generateJwtToken(user);
+//         return res.json({ token });
+//     })(req, res, next);
+// };
+
 exports.login = (req, res, next) => {
     passport.authenticate('local', { session: false }, (err, user, info) => {
         if (err) {
             return next(err);
         }
         if (!user) {
-            return res.status(400).json({ message: info.message });
+            return res.status(400).json({ message: info.message || "Login failed" });
         }
+
+        // Success path
         const token = generateJwtToken(user);
-        return res.json({ token });
+
+        // Ensure the response is always a complete JSON object
+        // with the token and a user object (if the frontend expects it).
+        return res.json({
+            token: token,
+            user: {
+                id: user.user_id,
+                email: user.email,
+                role: user.role,
+                firstName: user.first_name // Add essential user data
+            },
+            message: "Login successful"
+        });
     })(req, res, next);
 };
 
