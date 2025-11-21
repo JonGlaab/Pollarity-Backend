@@ -102,7 +102,7 @@ exports.googleCallback = (req, res, next) => {
         }
 
         if (!user.first_name || !user.last_name) {
-            const registrationToken = jwt.sign({ temp_id: user.id, provider: 'google' }, process.env.JWT_SECRET, { expiresIn: '15m' });
+            const registrationToken = jwt.sign({ temp_id: user.id, provider: 'google' }, process.env.JWT_SECRET, { expiresIn: '1h' });
             return res.redirect(`/complete-registration?token=${registrationToken}`);
         }
 
@@ -112,26 +112,26 @@ exports.googleCallback = (req, res, next) => {
 };
 
 
-exports.facebookLogin = passport.authenticate('facebook', { scope: ['email'] });
-
-exports.facebookCallback = (req, res, next) => {
-    passport.authenticate('facebook', { session: false }, (err, user, info) => {
-        if (err) {
-            return next(err);
-        }
-        if (!user) {
-            return res.redirect('/login');
-        }
-
-        if (!user.first_name || !user.last_name) {
-            const registrationToken = jwt.sign({ temp_id: user.id, provider: 'facebook' }, process.env.JWT_SECRET, { expiresIn: '15m' });
-            return res.redirect(`/complete-registration?token=${registrationToken}`);
-        }
-
-        const token = generateJwtToken(user);
-        res.redirect(`/?token=${token}`);
-    })(req, res, next);
-};
+// exports.facebookLogin = passport.authenticate('facebook', { scope: ['email'] });
+//
+// exports.facebookCallback = (req, res, next) => {
+//     passport.authenticate('facebook', { session: false }, (err, user, info) => {
+//         if (err) {
+//             return next(err);
+//         }
+//         if (!user) {
+//             return res.redirect('/login');
+//         }
+//
+//         if (!user.first_name || !user.last_name) {
+//             const registrationToken = jwt.sign({ temp_id: user.id, provider: 'facebook' }, process.env.JWT_SECRET, { expiresIn: '15m' });
+//             return res.redirect(`/complete-registration?token=${registrationToken}`);
+//         }
+//
+//         const token = generateJwtToken(user);
+//         res.redirect(`/?token=${token}`);
+//     })(req, res, next);
+// };
 
 exports.completeRegistration = [
     check('first_name').not().isEmpty().withMessage('First name is required.'),
