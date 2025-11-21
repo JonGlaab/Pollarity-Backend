@@ -1,14 +1,14 @@
-
 const router = require('express').Router();
 const db = require('../../models');
-const authMiddleware = require('../../middleware/auth');
+const { authenticateJWT } = require('../../middleware/auth');
+
 const { Survey, Question, Option, sequelize } = db;
 
 // Utility to generate a nice_url (UUID-like, 32 chars long)
 const { v4: uuidv4 } = require('uuid');
 
 // POST /api/surveys: CREATE A NEW SURVEY
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authenticateJWT, async (req, res) => {
 
     const { title, description, status, questions } = req.body;
 
@@ -77,7 +77,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // GET /api/surveys: FETCH PUBLISHED SURVEYS (Home.js dependency)
-router.get('/', async (req, res) => {
+router.get('/', authenticateJWT, async (req, res) => {
     try {
         const surveys = await Survey.findAll({
             where: { status: 'published' },

@@ -6,6 +6,8 @@ const adminRoutes = require('./admin');
 const surveyRoutes = require('./surveys');
 
 
-router.use('/auth',authRoutes);
-router.use('/surveys',surveyRoutes)
-router.use('/admin',adminRoutes)
+router.use('/auth', authRoutes);
+router.use('/surveys', surveyRoutes);
+router.use('/admin', adminRoutes);
+
+module.exports = router;
