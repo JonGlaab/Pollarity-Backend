@@ -80,16 +80,16 @@ Elizabeth
 
 2025-09-21
   Minh
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? - got google login started; and chart logic
+  What will I do today? - correct google login issues; maybe chart view, build admin login/network
+  What impediments are blocking me? - login issues with the live site login / site doesn't update fast enough
 
 Jonathan
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? - researched shadcn and figma, made a prototype
+  What will I do today? - fix styling, massage prototype into existing code
+  What impediments are blocking me? - nothing wants to play well together
 
 Elizabeth
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? - creating the surveys logic and connections to 
+  What will I do today? - solve surveys not saving to hosted db, checkbox for public/private, survey answer logic
+  What impediments are blocking me? - hosting issues 
