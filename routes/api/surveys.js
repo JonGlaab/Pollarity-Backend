@@ -1,8 +1,8 @@
 const router = require('express').Router();
 const db = require('../../models');
-const { authenticateJWT } = require('../../middleware/auth');
 const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
+const { authenticateJWT, checkBanned } = require('../../middleware/auth')
 
 const { Survey, Question, Option, Submission, Response, sequelize } = db;
 
@@ -10,7 +10,7 @@ const { Survey, Question, Option, Submission, Response, sequelize } = db;
 const { v4: uuidv4 } = require('uuid');
 
 // POST /api/surveys: CREATE A NEW SURVEY
-router.post('/', authenticateJWT, async (req, res) => {
+router.post('/', [authenticateJWT,checkBanned], async (req, res) => {
 
     const { title, description, status, questions } = req.body;
 
@@ -79,7 +79,7 @@ router.post('/', authenticateJWT, async (req, res) => {
 });
 
 // GET /api/surveys/participated: Fetch current user's history
-router.get('/participated', [authenticateJWT, authMiddleware.checkBanned], async (req, res) => {
+router.get('/participated', [authenticateJWT, checkBanned], async (req, res) => {
     try {
         const userId = req.user.user_id;
 
@@ -275,7 +275,7 @@ const fetchSurveyRawData = async (surveyId, userId, userRole) => {
 }
 
 //EXPORT TO CSV
-router.get('/:id/export/csv', [authMiddleware.authenticateJWT, authMiddleware.checkBanned], async (req, res) => {
+router.get('/:id/export/csv', [authenticateJWT, checkBanned], async (req, res) => {
     try {
 
         const { survey, submissions } = await fetchSurveyRawData(req.params.id, req.user.user_id);
@@ -320,7 +320,7 @@ router.get('/:id/export/csv', [authMiddleware.authenticateJWT, authMiddleware.ch
 });
 
 //EXPORT TO EXCEL
-router.get('/:id/export/excel', [authMiddleware.authenticateJWT, authMiddleware.checkBanned], async (req, res) => {
+router.get('/:id/export/excel', [authenticateJWT, checkBanned], async (req, res) => {
     try {
 
         const { survey, submissions } = await fetchSurveyRawData(req.params.id, req.user.user_id);

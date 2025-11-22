@@ -5,6 +5,19 @@ const { authenticateJWT, isAdmin, checkBanned } = require('../../middleware/auth
 
 const User = require('../../models/user');
 
+router.get('/users', [authenticateJWT, isAdmin], async (req, res) => {
+    try {
+        const users = await User.findAll({
+            // Select only necessary fields, definitely EXCLUDE password
+            attributes: ['user_id', 'first_name', 'last_name', 'email', 'role', 'isBanned', 'createdAt']
+        });
+        res.json(users);
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 router.post('/ban/:userId', [authenticateJWT, checkBanned, isAdmin], async (req, res) => {
    try {
         const user = await User.findByPk(req.params.userId);

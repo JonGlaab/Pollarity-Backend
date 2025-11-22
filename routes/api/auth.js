@@ -35,6 +35,7 @@ router.post('/register', [
 
         const token = generateToken(newUser);
         res.status(201).json({ token });
+
     } catch (error) {
         if (error.name === 'SequelizeValidationError') {
             return res.status(400).json({ message: error.errors.map(e => e.message).join(', ') });
@@ -63,15 +64,16 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login', session: false }), (req, res) => {
     const token = generateToken(req.user);
-    res.redirect(`/?token=${token}`);
+    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendURL}/?token=${token}`);
 });
 
 // Facebook authentication
-router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
-
-router.get('/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login', session: false }), (req, res) => {
-    const token = generateToken(req.user);
-    res.redirect(`/?token=${token}`);
-});
+// router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
+//
+// router.get('/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login', session: false }), (req, res) => {
+//     const token = generateToken(req.user);
+//     res.redirect(`/?token=${token}`);
+// });
 
 module.exports = router;

@@ -46,8 +46,8 @@ passport.use(new GoogleStrategy({
         const newUser = await User.create({
             google_id: profile.id,
             email: profile.emails[0].value,
-            first_name: profile.name.givenName,
-            last_name: profile.name.familyName,
+            first_name: profile.name.givenName || 'User',
+            last_name: profile.name.familyName || '',
         });
         return done(null, newUser);
     } catch (err) {
