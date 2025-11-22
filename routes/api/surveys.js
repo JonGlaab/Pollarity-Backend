@@ -133,7 +133,7 @@ router.get('/participated', [authenticateJWT, checkBanned], async (req, res) => 
 });
 
 // GET /api/surveys: FETCH PUBLISHED SURVEYS (Home.js dependency)
-router.get('/', authenticateJWT, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const surveys = await Survey.findAll({
             where: { status: 'published' },
