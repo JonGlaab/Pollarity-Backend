@@ -63,18 +63,21 @@ const PORT = process.env.PORT || 5001;
 
 const startServer = async () => {
     try {
-        if (process.env.NODE_ENV === 'production') {
-            await db.sequelize.sync({ alter: true });
-        } else {
+        // For development, reset the DB on every start.
+        // For production, assume the DB schema is managed manually or with migrations.
+        if (process.env.NODE_ENV !== 'production') {
             await db.sequelize.sync({ force: true });
+            console.log("Database tables reset and synchronized successfully (force: true).");
+        } else {
+            await db.sequelize.authenticate();
+            console.log("Database connection authenticated successfully (production).");
         }
-        console.log("Database tables synchronized successfully");
-        console.log("DB connection successfully created");
+
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
     } catch (err) {
-        console.error("Failed to sync db:", err);
+        console.error("Failed to start server:", err);
         process.exit(1);
     }
 };
