@@ -63,7 +63,11 @@ const PORT = process.env.PORT || 5001;
 
 const startServer = async () => {
     try {
-        await db.sequelize.sync({ alter: true }); // Added alter: true for development safety
+        if (process.env.NODE_ENV === 'production') {
+            await db.sequelize.sync({ alter: true });
+        } else {
+            await db.sequelize.sync({ force: true });
+        }
         console.log("Database tables synchronized successfully");
         console.log("DB connection successfully created");
         app.listen(PORT, () => {
