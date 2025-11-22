@@ -22,6 +22,10 @@ const Survey = sequelize.define("Survey", {
         type: DataTypes.ENUM('draft','published','closed'),
         defaultValue: "draft"
     },
+    is_public: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
     createdAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,

@@ -4,6 +4,7 @@ const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
 const { authenticateJWT, checkBanned } = require('../../middleware/auth')
 const passport = require('passport');
+const { Op } = require('sequelize');
 
 const { Survey, Question, Option, Submission, Response, sequelize } = db;
 
@@ -13,7 +14,7 @@ const { v4: uuidv4 } = require('uuid');
 // POST /api/surveys: CREATE A NEW SURVEY
 router.post('/', [authenticateJWT,checkBanned], async (req, res) => {
 
-    const { title, description, status, questions } = req.body;
+    const { title, description, status, is_public, questions } = req.body;
 
     const creator_user_id = req.user.user_id;
 
@@ -29,6 +30,7 @@ router.post('/', [authenticateJWT,checkBanned], async (req, res) => {
             title,
             description,
             status: status === 'published' ? 'published' : 'draft',
+            is_public,
             creator_user_id, // FK is required
             nice_url: uuidv4().replace(/-/g, ''), // Generate a 32-char UUID for the nice_url
             publishedAt: status === 'published' ? new Date() : null,
@@ -136,7 +138,9 @@ router.get('/participated', [authenticateJWT, checkBanned], async (req, res) => 
 router.get('/', async (req, res) => {
     try {
         const surveys = await Survey.findAll({
-            where: { status: 'published' },
+            where: {
+                [Op.and]: [{ status: 'published' }, { is_public: true }]
+            },
             attributes: ['survey_id', 'title', 'createdAt', 'nice_url'],
             include: [{ model: db.User, attributes: ['first_name', 'last_name'] }],
             order: [['createdAt', 'DESC']],
