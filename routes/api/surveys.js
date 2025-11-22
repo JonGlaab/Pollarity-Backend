@@ -3,6 +3,7 @@ const db = require('../../models');
 const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
 const { authenticateJWT, checkBanned } = require('../../middleware/auth')
+const passport = require('passport');
 
 const { Survey, Question, Option, Submission, Response, sequelize } = db;
 
@@ -136,7 +137,7 @@ router.get('/', authenticateJWT, async (req, res) => {
     try {
         const surveys = await Survey.findAll({
             where: { status: 'published' },
-            attributes: ['survey_id', 'title', 'createdAt'],
+            attributes: ['survey_id', 'title', 'createdAt', 'nice_url'],
             include: [{ model: db.User, attributes: ['first_name', 'last_name'] }],
             order: [['createdAt', 'DESC']],
         });
@@ -146,6 +147,91 @@ router.get('/', authenticateJWT, async (req, res) => {
         return res.status(500).json({ error: "Failed to fetch surveys." });
     }
 });
+
+//>>>>>
+// GET /api/surveys/nice/:nice_url - Public: fetch a published survey by its nice_url
+router.get('/:niceUrl', async (req, res) => {
+    try {
+        const { niceUrl } = req.params;
+        const survey = await Survey.findOne({
+            where: { nice_url: niceUrl, status: 'published' },
+            include: [
+                {
+                    model: Question,
+                    include: [Option],
+                    order: [['question_order', 'ASC']]
+                },
+                {
+                    model: db.User,
+                    attributes: ['first_name', 'last_name']
+                }
+            ]
+        });
+
+        if (!survey) return res.status(404).json({ error: 'Survey not found or not published' });
+
+        return res.json(survey);
+    } catch (error) {
+        console.error('Error fetching survey by nice_url:', error);
+        return res.status(500).json({ error: 'Failed to fetch survey' });
+    }
+});
+
+// POST /api/surveys/:niceUrl/submit - Public: submit responses to a survey
+router.post('/:niceUrl/submit', async (req, res, next) => {
+    try {
+        const { niceUrl } = req.params;
+        const { answers } = req.body; // expected: array of { question_id, selected_option_id?, response_text? }
+
+        const survey = await Survey.findOne({ where: { nice_url: niceUrl, status: 'published' } });
+        if (!survey) return res.status(404).json({ error: 'Survey not found or not accepting responses' });
+
+        // Try to authenticate user if token present (optional)
+        passport.authenticate('jwt', { session: false }, async (err, user) => {
+            if (err) return next(err);
+            const t = await sequelize.transaction();
+            try {
+                const submissionData = { survey_id: survey.survey_id };
+                if (user) submissionData.user_id = user.user_id;
+
+                const newSubmission = await Submission.create(submissionData, { transaction: t });
+
+                // normalize answers array and create Response rows
+                if (Array.isArray(answers)) {
+                    for (const a of answers) {
+                        // a may represent a single response (for radio/text) or multiple (for checkboxes we expect multiple entries)
+                        const responseRow = {
+                            submission_id: newSubmission.submission_id,
+                            question_id: a.question_id,
+                            response_text: a.response_text || null,
+                            selected_option_id: a.selected_option_id || null
+                        };
+                        await Response.create(responseRow, { transaction: t });
+                    }
+                }
+
+                // mark survey has_answers true
+                if (!survey.has_answers) {
+                    survey.has_answers = true;
+                    await survey.save({ transaction: t });
+                }
+
+                await t.commit();
+                return res.status(201).json({ message: 'Submission saved' });
+            } catch (error) {
+                await t.rollback();
+                console.error('Error saving submission:', error);
+                return res.status(500).json({ error: 'Failed to save submission' });
+            }
+        })(req, res, next);
+
+    } catch (error) {
+        console.error('Submission endpoint error:', error);
+        return res.status(500).json({ error: 'Failed to process submission' });
+    }
+});
+//>>>>>
+
 // GET /api/surveys/:id/results: FETCH ANALYTICS
 router.get('/:id/results', authenticateJWT, async (req, res) => {
     try {
