@@ -93,3 +93,19 @@ Elizabeth
   What did I do yesterday? - creating the surveys logic and connections to 
   What will I do today? - solve surveys not saving to hosted db, checkbox for public/private, survey answer logic
   What impediments are blocking me? - hosting issues 
+
+2025-09-23
+  Minh
+  What did I do yesterday? - researching ai and gertting a key to connect
+  What will I do today? - adding ai to back end and front end, adding dowload button
+  What impediments are blocking me? - server not updating with commits
+
+Jonathan
+  What did I do yesterday? - created a survew view for answering. connected to nicURL
+  What will I do today? - survey stats, closing surveys, hopefully emailing
+  What impediments are blocking me? - only myself
+
+Elizabeth
+  What did I do yesterday? - Added checkbox to create survey for is_public and then made those surveys visible on the home
+  What will I do today? - work on user profile page where they can see and edit their photo and also their personal information.
+  What impediments are blocking me? - the usual prod bugs
