@@ -26,18 +26,18 @@ const User = sequelize.define('User', {
     email: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        unique: true,
+        // unique: true, // Moved to indexes
         isEmail: true
     },
     google_id:{
         type: DataTypes.STRING,
         allowNull: true,
-        unique: true,
+        // unique: true, // Moved to indexes
     },
     facebook_id:{
         type: DataTypes.STRING,
         allowNull: true,
-        unique: true,
+        // unique: true, // Moved to indexes
     },
     password: {
         type: DataTypes.STRING(255),
@@ -72,6 +72,23 @@ const User = sequelize.define('User', {
 }, {
     tableName: 'users',
     timestamps: false,
+    indexes: [
+        {
+            unique: true,
+            fields: ['email'],
+            name: 'unique_email'
+        },
+        {
+            unique: true,
+            fields: ['google_id'],
+            name: 'unique_google_id'
+        },
+        {
+            unique: true,
+            fields: ['facebook_id'],
+            name: 'unique_facebook_id'
+        }
+    ],
     hooks: {
         beforeValidate: (user) => {
 
