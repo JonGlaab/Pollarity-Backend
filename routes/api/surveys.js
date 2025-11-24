@@ -510,6 +510,84 @@ router.get('/:id/results', authenticateJWT, async (req, res) => {
     }
 });
 
+// GET /api/surveys/:id/aggregates - aggregated KPIs and per-question breakdowns (counts + cooccurrence)
+router.get('/:id/aggregates', authenticateJWT, async (req, res) => {
+    try {
+        const surveyId = parseInt(req.params.id, 10);
+        if (Number.isNaN(surveyId)) return res.status(400).json({ error: 'Invalid survey id' });
+
+        // KPIs
+        const kpiRow = await Submission.findOne({
+            where: { survey_id: surveyId },
+            attributes: [
+                [sequelize.fn('COUNT', sequelize.col('submission_id')), 'total_responses'],
+                [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('user_id'))), 'unique_respondents'],
+                [sequelize.fn('MIN', sequelize.col('submitted_at')), 'first_response_at'],
+                [sequelize.fn('MAX', sequelize.col('submitted_at')), 'last_response_at']
+            ],
+            raw: true
+        });
+
+        const survey = await Survey.findOne({ where: { survey_id: surveyId }, include: [{ model: Question, include: [Option], order: [['question_order', 'ASC']] }] });
+        if (!survey) return res.status(404).json({ error: 'Survey not found' });
+
+        const questionsOut = [];
+
+        for (const q of survey.Questions) {
+            const qObj = {
+                question_id: q.question_id,
+                question_text: q.question_text,
+                question_type: q.question_type,
+                total_answers: 0,
+                options: []
+            };
+
+            if (['multiple_choice', 'checkbox'].includes(q.question_type)) {
+                // counts per option
+                const counts = await Response.findAll({
+                    where: { question_id: q.question_id },
+                    attributes: ['selected_option_id', [sequelize.fn('COUNT', sequelize.col('response_id')), 'count']],
+                    group: ['selected_option_id'],
+                    raw: true
+                });
+
+                const totalAnswers = counts.reduce((s, r) => s + parseInt(r.count || 0, 10), 0);
+                qObj.total_answers = totalAnswers;
+
+                for (const opt of q.Options) {
+                    const found = counts.find(c => Number(c.selected_option_id) === Number(opt.option_id));
+                    const cnt = found ? parseInt(found.count, 10) : 0;
+                    qObj.options.push({ option_id: opt.option_id, option_text: opt.option_text, count: cnt, percentage: totalAnswers ? Math.round((cnt / totalAnswers) * 100) : 0 });
+                }
+
+                // co-occurrence for checkbox (pairs)
+                if (q.question_type === 'checkbox') {
+                    // raw SQL to compute co-occurrence between option pairs
+                    const sql = `SELECT r1.selected_option_id AS a, r2.selected_option_id AS b, COUNT(DISTINCT r1.submission_id) AS count
+                                             FROM responses r1
+                                             JOIN responses r2 ON r1.submission_id = r2.submission_id AND r1.selected_option_id < r2.selected_option_id
+                                             WHERE r1.question_id = :qid AND r2.question_id = :qid
+                                             GROUP BY a, b`;
+                    const [coRows] = await sequelize.query(sql, { replacements: { qid: q.question_id } });
+                    qObj.cooccurrence = coRows.map(r => ({ a: r.a, b: r.b, count: parseInt(r.count, 10) }));
+                }
+            } else if (q.question_type === 'short_answer') {
+                // collect recent text responses (limit 50)
+                const texts = await Response.findAll({ where: { question_id: q.question_id }, attributes: ['response_text'], limit: 50, order: [['response_id', 'DESC']], raw: true });
+                qObj.data = texts.map(t => t.response_text);
+                qObj.total_answers = texts.length;
+            }
+
+            questionsOut.push(qObj);
+        }
+
+        return res.json({ survey_id: survey.survey_id, survey_title: survey.title, kpis: kpiRow, questions: questionsOut });
+    } catch (error) {
+        console.error('Aggregates error:', error);
+        return res.status(500).json({ error: 'Failed to compute aggregates' });
+    }
+});
+
 //GET DATA TO EXPORT
 const fetchSurveyRawData = async (surveyId, userId, userRole) => {
     const survey = await Survey.findOne({
