@@ -37,7 +37,7 @@ exports.generateSurvey = async (req, res) => {
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "google/gemini-2.0-flash-exp:free",
+            model: "x-ai/grok-4.1-fast:free",
             response_format: { type: "json_object" },
             messages: [
                 {
@@ -106,7 +106,7 @@ exports.refineQuestion = async (req, res) => {
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "google/gemini-2.0-flash-exp:free",
+            model: "x-ai/grok-4.1-fast:free",
             response_format: { type: "json_object" },
             messages: [
                 {
