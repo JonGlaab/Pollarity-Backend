@@ -109,3 +109,35 @@ Elizabeth
   What did I do yesterday? - Added checkbox to create survey for is_public and then made those surveys visible on the home
   What will I do today? - work on user profile page where they can see and edit their photo and also their personal information.
   What impediments are blocking me? - the usual prod bugs
+
+  2025-09-24
+    Minh
+    What did I do yesterday? - adding ai to back end and front end, adding dowload button
+    What will I do today? - Testing UI. Debugging AI.
+    What impediments are blocking me? - server not updating with commits
+
+  Jonathan
+    What did I do yesterday? - survey stats, closing surveys, hopefully emailing
+    What will I do today? - needs to debug some of the code and clean up UI. Will try to get the email working. Will add some survey and data to test charts.
+    What impediments are blocking me? - Some challenges with AI "helper".
+
+  Elizabeth
+    What did I do yesterday? - work on user profile page where they can see and edit their photo and also their personal information.
+    What will I do today? - Create some data to test charts. Debug profile view in production doesn't show the photo. Will try to add themes.
+    What impediments are blocking me? - the usual prod bugs.
+
+  2025-09-25
+  Minh
+    What did I do yesterday?
+    What will I do today?
+    What impediments are blocking me?
+
+  Jonathan
+    What did I do yesterday?
+    What will I do today?
+    What impediments are blocking me?
+
+  Elizabeth
+    What did I do yesterday?
+    What will I do today?
+    What impediments are blocking me?
