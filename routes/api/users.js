@@ -3,30 +3,43 @@ const { User } = require('../../models');
 const { authenticateJWT } = require('../../middleware/auth');
 const { s3Client } = require('../../config/backblaze');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { GetObjectCommand } = require('@aws-sdk/client-s3');
+const { GetObjectCommand, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+
+// Configure multer for in-memory file storage
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Centralized helper to get the Backblaze Key from a URL
+const getKeyFromUrl = (url) => {
+    if (!url) return null;
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.pathname.substring(1);
+    } catch (e) {
+        console.error("Invalid URL for key extraction:", url, e);
+        return null;
+    }
+};
 
 // Helper function to generate a pre-signed URL for a private photo
 const generatePresignedUrl = async (photoUrl) => {
-    // Only try to generate a URL if it's a valid Backblaze URL
-    if (photoUrl && photoUrl.includes('backblazeb2.com')) {
+    const key = getKeyFromUrl(photoUrl);
+    if (key) {
         try {
-            const url = new URL(photoUrl);
-            const bucketName = url.hostname.split('.')[0];
-            const key = url.pathname.substring(1);
-
             const command = new GetObjectCommand({
-                Bucket: bucketName,
+                Bucket: process.env.BACKBLAZE_BUCKET,
                 Key: key,
             });
-
-            // The URL will be valid for 1 hour
             return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
         } catch (urlError) {
             console.error("Could not generate pre-signed URL:", urlError);
             return photoUrl; // Return original URL on failure
         }
     }
-    return photoUrl; // Return original URL if it's not a Backblaze URL
+    return photoUrl; // Return original URL if it's not a valid URL
 };
 
 // GET /api/users/me - Fetch the current logged-in user's profile
@@ -56,17 +69,57 @@ router.get('/me', authenticateJWT, async (req, res) => {
 });
 
 // PUT /api/users/me - Update the current logged-in user's profile
-router.put('/me', authenticateJWT, async (req, res) => {
-    const { first_name, last_name, email } = req.body;
+router.put('/me', authenticateJWT, upload.single('profile_photo'), async (req, res) => {
+    const { first_name, last_name, email, remove_photo } = req.body;
 
     try {
         const user = await User.findByPk(req.user.user_id);
-
         if (!user) {
             return res.status(404).json({ error: 'User not found.' });
         }
 
-        // Update the user's fields
+        const oldPhotoUrl = user.user_photo_url;
+        const defaultPhotoUrl = `https://${process.env.BACKBLAZE_BUCKET}.${process.env.BACKBLAZE_ENDPOINT}/default-profile.png`;
+
+        const deleteOldPhoto = async () => {
+            const oldKey = getKeyFromUrl(oldPhotoUrl);
+            if (oldKey && oldKey !== 'default-profile.png') {
+                try {
+                    const deleteCommand = new DeleteObjectCommand({
+                        Bucket: process.env.BACKBLAZE_BUCKET,
+                        Key: oldKey,
+                    });
+                    await s3Client.send(deleteCommand);
+                } catch (deleteError) {
+                    console.error("Failed to delete old profile photo from Backblaze:", deleteError);
+                }
+            }
+        };
+
+        // Priority 1: Handle new file upload
+        if (req.file) {
+            await deleteOldPhoto(); // Delete before uploading new one
+            
+            const file = req.file;
+            const uniqueFileName = `user_profile_photo_${uuidv4()}${path.extname(file.originalname)}`;
+            
+            const putCommand = new PutObjectCommand({
+                Bucket: process.env.BACKBLAZE_BUCKET,
+                Key: uniqueFileName,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+            });
+            await s3Client.send(putCommand);
+
+            user.user_photo_url = `https://${process.env.BACKBLAZE_BUCKET}.${process.env.BACKBLAZE_ENDPOINT}/${uniqueFileName}`;
+        } 
+        // Priority 2: Handle photo removal (only if no new file was uploaded)
+        else if (remove_photo === 'true') {
+            await deleteOldPhoto();
+            user.user_photo_url = defaultPhotoUrl;
+        }
+
+        // Update text fields
         user.first_name = first_name || user.first_name;
         user.last_name = last_name || user.last_name;
         user.email = email || user.email;
@@ -75,7 +128,6 @@ router.put('/me', authenticateJWT, async (req, res) => {
 
         const presignedUrl = await generatePresignedUrl(user.user_photo_url);
 
-        // Return the updated user data with a new pre-signed URL
         res.json({
             first_name: user.first_name,
             last_name: user.last_name,
