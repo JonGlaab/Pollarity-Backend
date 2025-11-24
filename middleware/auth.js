@@ -10,6 +10,24 @@ const authenticateJWT = (req, res, next) => {
             return res.status(401).json({ message: 'Unauthorized' });
         }
         req.user = user;
+        // Also attempt to decode the raw JWT to expose its payload (helpful when passport returns a minimal user)
+        try {
+            const authHeader = req.headers && (req.headers.authorization || req.headers.Authorization);
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                const token = authHeader.split(' ')[1];
+                const jwt = require('jsonwebtoken');
+                const payload = jwt.verify(token, process.env.JWT_SECRET);
+                // expose token payload fields directly for convenience
+                req.tokenPayload = payload;
+                if (!req.user.user_id && payload.user_id) {
+                    // attach a convenient user_id field if missing on the user object
+                    req.user.user_id = payload.user_id;
+                }
+            }
+        } catch (e) {
+            // don't block authentication on token decode errors; just log
+            console.warn('Failed to decode JWT in authenticateJWT middleware', e.message);
+        }
         next();
     })(req, res, next);
 };

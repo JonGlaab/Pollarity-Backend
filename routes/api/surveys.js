@@ -152,8 +152,163 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET /api/surveys/mine - Authenticated: fetch surveys created by current user
+router.get('/mine', [authenticateJWT, checkBanned], async (req, res) => {
+    try {
+        // Support multiple user shapes: passport may attach a Sequelize model or a plain object
+        let userId = null;
+        if (req.user) {
+            userId = req.user.user_id || req.user.id || (req.user.dataValues && (req.user.dataValues.user_id || req.user.dataValues.id));
+        }
+        // fallback to token payload if middleware decoded it
+        if (!userId && req.tokenPayload && req.tokenPayload.user_id) {
+            userId = req.tokenPayload.user_id;
+        }
+
+        if (!userId) {
+            console.warn('GET /api/surveys/mine called but req.user missing id:', req.user && (req.user.toJSON ? req.user.toJSON() : req.user));
+            return res.status(500).json({ error: 'Authenticated but user id not available on server.' });
+        }
+
+        const surveys = await Survey.findAll({
+            where: { creator_user_id: userId },
+            attributes: ['survey_id', 'nice_url', 'title', 'status', 'createdAt', 'publishedAt'],
+            include: [
+                { model: Question, attributes: ['question_id'] },
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+
+        const result = surveys.map(s => ({
+            survey_id: s.survey_id,
+            nice_url: s.nice_url,
+            title: s.title,
+            status: s.status,
+            createdAt: s.createdAt,
+            publishedAt: s.publishedAt,
+            question_count: s.Questions ? s.Questions.length : 0
+        }));
+
+        return res.json(result);
+    } catch (error) {
+        console.error('Error fetching user surveys:', error);
+        return res.status(500).json({ error: 'Failed to fetch your surveys' });
+    }
+});
+
+// GET /api/surveys/:niceUrl/edit - Authenticated: fetch survey for editing by creator
+// NOTE: This must appear before the generic GET /:niceUrl route so Express matches it first.
+router.get('/:niceUrl/edit', [authenticateJWT, checkBanned], async (req, res) => {
+    try {
+        const { niceUrl } = req.params;
+        // extract user id defensively
+        let userId = req.user && (req.user.user_id || req.user.id || (req.user.dataValues && (req.user.dataValues.user_id || req.user.dataValues.id)));
+        if (!userId && req.tokenPayload && req.tokenPayload.user_id) userId = req.tokenPayload.user_id;
+
+        const survey = await Survey.findOne({
+            where: { nice_url: niceUrl },
+            include: [{ model: Question, include: [Option] }]
+        });
+
+        if (!survey) return res.status(404).json({ error: 'Survey not found' });
+        if (survey.creator_user_id !== userId) {
+            console.warn(`/api/surveys/${niceUrl}/edit access denied — request userId=${userId}, survey.creator_user_id=${survey.creator_user_id}`);
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        return res.json(survey);
+    } catch (error) {
+        console.error('Error fetching survey for edit:', error);
+        return res.status(500).json({ error: 'Failed to fetch survey for edit' });
+    }
+});
+
+// PUT /api/surveys/:niceUrl - Authenticated: update survey (replace questions/options)
+// NOTE: uses PUT /:niceUrl (method differs from GET) and must be placed before GET /:niceUrl
+router.put('/:niceUrl', [authenticateJWT, checkBanned], async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+        const { niceUrl } = req.params;
+        let userId = req.user && (req.user.user_id || req.user.id || (req.user.dataValues && (req.user.dataValues.user_id || req.user.dataValues.id)));
+        if (!userId && req.tokenPayload && req.tokenPayload.user_id) userId = req.tokenPayload.user_id;
+
+        const survey = await Survey.findOne({ where: { nice_url: niceUrl } });
+        if (!survey) {
+            await t.rollback();
+            return res.status(404).json({ error: 'Survey not found' });
+        }
+        if (survey.creator_user_id !== userId) {
+            await t.rollback();
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const { title, description, status, is_public, questions } = req.body;
+
+        survey.title = title || survey.title;
+        survey.description = description || survey.description;
+        survey.status = status || survey.status;
+        survey.is_public = typeof is_public === 'boolean' ? is_public : survey.is_public;
+        survey.publishedAt = status === 'published' ? new Date() : survey.publishedAt;
+        await survey.save({ transaction: t });
+
+        // Delete existing questions and options
+        await Question.destroy({ where: { survey_id: survey.survey_id }, transaction: t });
+
+        // Recreate questions and options
+        if (Array.isArray(questions)) {
+            for (const [qIndex, q] of questions.entries()) {
+                const newQuestion = await Question.create({
+                    survey_id: survey.survey_id,
+                    question_text: q.question_text,
+                    question_type: q.question_type,
+                    question_order: q.question_order || qIndex + 1,
+                    is_required: q.is_required || false
+                }, { transaction: t });
+
+                if (Array.isArray(q.options) && q.options.length > 0) {
+                    const optionsToSave = q.options.map((opt, optIndex) => ({
+                        question_id: newQuestion.question_id,
+                        option_text: opt.option_text,
+                        option_order: opt.option_order || optIndex + 1
+                    }));
+                    await Option.bulkCreate(optionsToSave, { transaction: t });
+                }
+            }
+        }
+
+        await t.commit();
+        return res.json({ message: 'Survey updated', nice_url: survey.nice_url });
+    } catch (error) {
+        await t.rollback();
+        console.error('Error updating survey:', error);
+        return res.status(500).json({ error: 'Failed to update survey' });
+    }
+});
+
+// POST /api/surveys/:niceUrl/close - Authenticated: close a survey (creator only)
+router.post('/:niceUrl/close', [authenticateJWT, checkBanned], async (req, res) => {
+    try {
+        const { niceUrl } = req.params;
+        // extract user id defensively like /mine
+        let userId = req.user && (req.user.user_id || req.user.id || (req.user.dataValues && (req.user.dataValues.user_id || req.user.dataValues.id)));
+        if (!userId && req.tokenPayload && req.tokenPayload.user_id) userId = req.tokenPayload.user_id;
+
+        const survey = await Survey.findOne({ where: { nice_url: niceUrl } });
+        if (!survey) return res.status(404).json({ error: 'Survey not found' });
+        if (survey.creator_user_id !== userId) return res.status(403).json({ error: 'Access denied' });
+
+        survey.status = 'closed';
+        await survey.save();
+
+        return res.json({ message: 'Survey closed' });
+    } catch (error) {
+        console.error('Error closing survey:', error);
+        return res.status(500).json({ error: 'Failed to close survey' });
+    }
+});
+
 //>>>>>
-// GET /api/surveys/nice/:nice_url - Public: fetch a published survey by its nice_url
+// GET /api/surveys/:nice_url - Public: fetch a published survey by its nice_url
 router.get('/:niceUrl', async (req, res) => {
     try {
         const { niceUrl } = req.params;
