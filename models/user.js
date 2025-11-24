@@ -21,7 +21,7 @@ const User = sequelize.define('User', {
     user_photo_url:{
         type: DataTypes.STRING(255),
         allowNull: false,
-        defaultValue:"https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_960_720.png"
+        defaultValue:"https://pollarity-profile-photos.s3.ca-east-006.backblazeb2.com/default-profile.png"
     },
     email: {
         type: DataTypes.STRING(255),
