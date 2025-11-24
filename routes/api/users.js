@@ -65,21 +65,19 @@ router.put('/me', authenticateJWT, upload.single('profile_photo'), async (req, r
         if (!user) return res.status(404).json({ error: 'User not found.' });
 
         const oldPhotoUrl = user.user_photo_url;
-        const oldVersionId = user.user_photo_version_id;
         const defaultPhotoUrl = `https://${process.env.BACKBLAZE_BUCKET}.${process.env.BACKBLAZE_ENDPOINT}/default-profile.png`;
 
         const deleteOldPhoto = async () => {
             const oldKey = getKeyFromUrl(oldPhotoUrl);
-            if (oldKey && oldKey !== 'default-profile.png' && oldVersionId) {
+            if (oldKey && oldKey !== 'default-profile.png') {
                 try {
                     const deleteCommand = new DeleteObjectCommand({
                         Bucket: process.env.BACKBLAZE_BUCKET,
                         Key: oldKey,
-                        VersionId: oldVersionId, // Specify the exact version to delete
                     });
                     await s3Client.send(deleteCommand);
                 } catch (deleteError) {
-                    console.error("Failed to permanently delete old profile photo:", deleteError);
+                    console.error("Failed to delete old profile photo from Backblaze:", deleteError);
                 }
             }
         };
@@ -96,15 +94,13 @@ router.put('/me', authenticateJWT, upload.single('profile_photo'), async (req, r
                 Body: file.buffer,
                 ContentType: file.mimetype,
             });
-            const uploadResult = await s3Client.send(putCommand);
+            await s3Client.send(putCommand);
 
-            user.user_photo_url = `https://${process.env.BACKBLAZE_BUCKET}.${process.env.BACKBLAZE_ENDPOINT}/${uniqueFileName}`;
-            user.user_photo_version_id = uploadResult.VersionId; // Save the new version ID
+            user.user_photo_url = `https://://${process.env.BACKBLAZE_BUCKET}.${process.env.BACKBLAZE_ENDPOINT}/${uniqueFileName}`;
         } 
         else if (remove_photo === 'true') {
             await deleteOldPhoto();
             user.user_photo_url = defaultPhotoUrl;
-            user.user_photo_version_id = null; // Clear the version ID
         }
 
         user.first_name = first_name || user.first_name;

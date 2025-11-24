@@ -23,10 +23,6 @@ const User = sequelize.define('User', {
         allowNull: false,
         defaultValue:"https://pollarity-profile-photos.s3.ca-east-006.backblazeb2.com/default-profile.png"
     },
-    user_photo_version_id: { // New field to store the version ID
-        type: DataTypes.STRING(255),
-        allowNull: true,
-    },
     email: {
         type: DataTypes.STRING(255),
         allowNull: false,
