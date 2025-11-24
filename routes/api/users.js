@@ -96,7 +96,7 @@ router.put('/me', authenticateJWT, upload.single('profile_photo'), async (req, r
             });
             await s3Client.send(putCommand);
 
-            user.user_photo_url = `https://://${process.env.BACKBLAZE_BUCKET}.${process.env.BACKBLAZE_ENDPOINT}/${uniqueFileName}`;
+            user.user_photo_url = `https://${process.env.BACKBLAZE_BUCKET}.${process.env.BACKBLAZE_ENDPOINT}/${uniqueFileName}`;
         } 
         else if (remove_photo === 'true') {
             await deleteOldPhoto();
