@@ -172,7 +172,7 @@ router.get('/mine', [authenticateJWT, checkBanned], async (req, res) => {
 
         const surveys = await Survey.findAll({
             where: { creator_user_id: userId },
-            attributes: ['survey_id', 'nice_url', 'title', 'status', 'createdAt', 'publishedAt'],
+            attributes: ['survey_id', 'nice_url', 'title', 'status', 'createdAt', 'publishedAt', 'has_answers'],
             include: [
                 { model: Question, attributes: ['question_id'] },
             ],
@@ -307,7 +307,7 @@ router.post('/:niceUrl/close', [authenticateJWT, checkBanned], async (req, res) 
     }
 });
 
-//>>>>>
+
 // GET /api/surveys/:nice_url - Public: fetch a published survey by its nice_url
 router.get('/:niceUrl', async (req, res) => {
     try {
@@ -336,11 +336,32 @@ router.get('/:niceUrl', async (req, res) => {
     }
 });
 
-// POST /api/surveys/:niceUrl/submit - Public: submit responses to a survey
+// GET /api/surveys/:niceUrl/submission - return the current authenticated user's submission for this survey
+router.get('/:niceUrl/submission', [authenticateJWT, checkBanned], async (req, res) => {
+    try {
+        const { niceUrl } = req.params;
+        const survey = await Survey.findOne({ where: { nice_url: niceUrl } });
+        if (!survey) return res.status(404).json({ error: 'Survey not found' });
+
+        const submission = await Submission.findOne({
+            where: { survey_id: survey.survey_id, user_id: req.user.user_id },
+            include: [{ model: Response }]
+        });
+
+        if (!submission) return res.json({ submission: null });
+        return res.json({ submission });
+    } catch (error) {
+        console.error('Error fetching submission:', error);
+        return res.status(500).json({ error: 'Failed to fetch submission' });
+    }
+});
+
+// POST /api/surveys/:niceUrl/submit - submit responses to a survey
+// Signed-in users may only have one submission; additional submits update their existing submission.
 router.post('/:niceUrl/submit', async (req, res, next) => {
     try {
         const { niceUrl } = req.params;
-        const { answers } = req.body; // expected: array of { question_id, selected_option_id?, response_text? }
+        const { answers } = req.body; // expected: array of responses
 
         const survey = await Survey.findOne({ where: { nice_url: niceUrl, status: 'published' } });
         if (!survey) return res.status(404).json({ error: 'Survey not found or not accepting responses' });
