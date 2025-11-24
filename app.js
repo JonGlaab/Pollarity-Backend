@@ -66,8 +66,8 @@ const startServer = async () => {
         // For development, reset the DB on every start.
         // For production, assume the DB schema is managed manually or with migrations.
         if (process.env.NODE_ENV !== 'production') {
-            await db.sequelize.sync({ force: true });
-            console.log("Database tables reset and synchronized successfully (force: true).");
+            await db.sequelize.sync({ alter: true });
+            console.log("Database tables synchronized successfully (alter: true).");
         } else {
             await db.sequelize.authenticate();
             console.log("Database connection authenticated successfully (production).");
