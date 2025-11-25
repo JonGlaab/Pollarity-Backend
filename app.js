@@ -9,7 +9,7 @@ const cors = require('cors');
 
 const app = express();
 
-// Trust the proxy (Render) for secure cookie handling (HTTPS)
+
 app.set('trust proxy', 1);
 
 // --- CORS Configuration ---

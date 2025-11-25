@@ -1,112 +1,138 @@
 const OpenAI = require('openai');
 
+
+if (!process.env.OPENROUTER_API_KEY) {
+    console.warn("WARNING: OPENROUTER_API_KEY is missing in .env file");
+}
+
 const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
     baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+        "HTTP-Referer": process.env.NODE_ENV === 'production'
+            ? "https://pollarity-frontend.onrender.com"
+            : "http://localhost:3000",
+        "X-Title": "Pollarity",
+    },
 });
 
+// Helper: Extracts JSON from markdown or raw text safely
 
-// This extracts ONLY the JSON part (between { } or [ ]) and ignores chatty text.
 const cleanAndParse = (text) => {
+    if (!text) return [];
+
     try {
+
+        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
         // 1. Try finding a JSON array first (for generateSurvey)
-        const arrayMatch = text.match(/\[[\s\S]*\]/);
-        if (arrayMatch) {
-            return JSON.parse(arrayMatch[0]);
-        }
+        const arrayMatch = cleanText.match(/\[[\s\S]*\]/);
+        if (arrayMatch) return JSON.parse(arrayMatch[0]);
 
-        // 2. Try finding a JSON object (for refineQuestion or wrapped responses)
-        const objectMatch = text.match(/\{[\s\S]*\}/);
-        if (objectMatch) {
-            return JSON.parse(objectMatch[0]);
-        }
+        // 2. Try finding a JSON object (for refineQuestion)
+        const objectMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (objectMatch) return JSON.parse(objectMatch[0]);
 
+        // 3. Fallback
+        return JSON.parse(cleanText);
 
-        return JSON.parse(text);
     } catch (e) {
         console.error("JSON Parse Error. Raw AI Output:", text);
-        throw new Error("AI returned invalid format. Check server logs for raw output.");
+        return [];
     }
 };
 
 exports.generateSurvey = async (req, res) => {
     const { title, description, existing_questions } = req.body;
 
-    let historyContext = "No questions created yet. Start from the beginning.";
+    // 1. Context Construction
+    let historyContext = "Current Survey State: New Survey.";
+    let avoidList = "";
 
-    if (existing_questions && Array.isArray(existing_questions) && existing_questions.length > 0) {
-        const questionList = existing_questions
-            .map((q, index) => `${index + 1}. ${q.question_text || q}`)
+    if (existing_questions && existing_questions.length > 0) {
+        // We take the last 15 questions for context to ensure flow
+        const recentQuestions = existing_questions.slice(-15);
+        const questionList = recentQuestions
+            .map((q, i) => `- ${q.question_text || q}`)
             .join("\n");
 
-        historyContext = `THE FOLLOWING QUESTIONS ALREADY EXIST (DO NOT REPEAT THEM):\n${questionList}`;
+        historyContext = `PREVIOUS QUESTIONS (Context only):\n${questionList}`;
+        avoidList = "CRITICAL: Do not repeat any questions from the list above. Do not ask the same thing in different words.";
     }
 
+    // 2. The Task
     const taskInstruction = existing_questions && existing_questions.length > 0
-        ? "Generate 5 NEW follow-up questions. They must be distinct from the existing list. Dig deeper into the topic."
-        : "Generate 5 introductory questions to start the survey.";
+        ? "Task: Generate 5 NEW follow-up questions that naturally continue the survey."
+        : "Task: Generate 5 introductory questions to start the survey.";
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "x-ai/grok-4.1-fast:free",
-
-
-
+            model: "meta-llama/llama-3.3-70b-instruct:free",
+            temperature: 0.2,
             messages: [
                 {
                     role: "system",
-                    content: `You are a Database-Aware Survey Architect. 
-Your goal is to expand a survey without repeating existing questions.
+                    content: `You are a headless JSON API. You do not speak. You only output JSON.
 
 ### DATABASE SCHEMA (STRICT)
-1. **Question Types**: ONLY use 'multiple_choice', 'checkbox', 'short_answer'.
-2. **Lengths**: "question_text" < 500 chars. "option_text" < 255 chars.
-3. **Required**: Set "is_required" to true only for essential data.
+1. **question_text**: String. Clear, concise, professional.
+2. **question_type**: Enum: 'multiple_choice', 'checkbox', 'short_answer'.
+3. **is_required**: Boolean.
+4. **options**: Array of objects { "option_text": "..." }. 
+   - MUST have 3-5 options for 'multiple_choice'/'checkbox'.
+   - MUST be empty [] for 'short_answer'.
 
 ### OUTPUT FORMAT
-Return ONLY a raw JSON array. Do not write "Here is the JSON". Just the array.
+Return a valid JSON Object with a "questions" key containing the array.
 Example:
-[
-  {
-    "question_text": "...",
-    "question_type": "multiple_choice",
-    "is_required": false,
-    "options": [ { "option_text": "..." } ]
-  }
-]
-
-### LOGIC RULES
-1. **No Duplicates**: Compare against the "ALREADY EXIST" list.
-2. **Short Answer**: "options" array MUST be empty [].
-3. **Options**: For multiple_choice/checkbox, provide 3-5 distinct options.`
+{
+  "questions": [
+    {
+      "question_text": "Select your age group.",
+      "question_type": "multiple_choice",
+      "is_required": true,
+      "options": [
+        { "option_text": "18-24" },
+        { "option_text": "25-34" },
+        { "option_text": "35+" }
+      ]
+    }
+  ]
+}`
                 },
                 {
                     role: "user",
-                    content: `**Survey Title**: ${title}
-**Description**: ${description}
+                    content: `Survey Title: ${title}
+Description: ${description}
 
 ${historyContext}
 
-**Current Task**: ${taskInstruction}`
+${avoidList}
+
+${taskInstruction}
+REMINDER: JSON ONLY. No markdown formatting. No conversational text.`
                 }
-            ],
-            temperature: 0.7,
+            ]
         });
 
-        const parsedData = cleanAndParse(completion.choices[0].message.content);
+        const rawContent = completion.choices[0].message.content;
+        const parsedData = cleanAndParse(rawContent);
 
-        const questionsArray = Array.isArray(parsedData) ? parsedData : (parsedData.questions || []);
+        // Normalize: Llama 3.3 might return the array directly or wrapped in { questions: [] }
+        // We check for both to be safe.
+        const finalQuestions = Array.isArray(parsedData)
+            ? parsedData
+            : (parsedData.questions || parsedData.data || []);
 
-        if (!Array.isArray(questionsArray) || questionsArray.length === 0) {
-            console.error("AI returned valid JSON but not an array:", parsedData);
-            return res.status(500).json({ message: "AI format error: Expected an array of questions." });
+        if (finalQuestions.length === 0) {
+            throw new Error("Empty question set generated");
         }
 
-        res.json(questionsArray);
+        res.json(finalQuestions);
 
     } catch (error) {
         console.error("AI Generate Error:", error);
-        res.status(500).json({ message: "Failed to generate questions", error: error.message });
+        res.status(500).json({ message: "Generation failed", error: error.message });
     }
 };
 
@@ -119,31 +145,47 @@ exports.refineQuestion = async (req, res) => {
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "x-ai/grok-4.1-fast:free",
+            model: "meta-llama/llama-3.3-70b-instruct:free",
+            temperature: 0.1, // Near-zero temperature for editing tasks to prevent hallucinations
             messages: [
                 {
                     role: "system",
-                    content: `You are an expert Survey Editor. Refine the question to be unbiased, clear, and professional.
-                    Fix grammar. Ensure options are mutually exclusive.
-                    
-                    OUTPUT FORMAT:
-                    Return ONLY a single raw JSON object. No markdown.
-                    { "question_text": "...", "options": [{ "option_text": "..." }] }`
+                    content: `You are a JSON Transformation Engine. 
+Your task: Improve grammar, remove bias, and ensure professional tone.
+
+INPUT: JSON Object
+OUTPUT: JSON Object (Refined version)
+
+Rules:
+1. Maintain the original intent.
+2. Fix spelling/grammar.
+3. Ensure options are mutually exclusive.
+4. Return ONLY the JSON.`
                 },
                 {
                     role: "user",
-                    content: `Context: ${survey_title} - ${survey_description}.
-                    Refine this: ${JSON.stringify(question)}`
+                    content: `Context: ${survey_title} - ${survey_description}
+
+Refine this JSON:
+${JSON.stringify(question)}`
                 }
-            ],
-            temperature: 0.7,
+            ]
         });
 
-        const refinedData = cleanAndParse(completion.choices[0].message.content);
-        res.json({ result: refinedData });
+        const parsedData = cleanAndParse(completion.choices[0].message.content);
+
+        // Validation check to ensure Llama didn't hallucinate a wrapper key
+        const result = parsedData.question_text ? parsedData : (parsedData.refined_question || parsedData.result);
+
+        if (!result || !result.question_text) {
+            console.error("Invalid Refine Data:", parsedData);
+            throw new Error("Invalid structure returned");
+        }
+
+        res.json({ result });
 
     } catch (error) {
         console.error("AI Refine Error:", error);
-        res.status(500).json({ message: "Failed to refine question", error: error.message });
+        res.status(500).json({ message: "Refinement failed", error: error.message });
     }
 };
