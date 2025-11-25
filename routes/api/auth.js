@@ -17,7 +17,7 @@ router.post('/register', [
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, first_name, last_name, confirmPassword } = req.body;
+    const { email, password, first_name, last_name } = req.body;
 
     try {
         const existingUser = await User.findOne({ where: { email } });
@@ -28,7 +28,6 @@ router.post('/register', [
         const newUser = await User.create({
             email,
             password,
-            confirmPassword,
             first_name,
             last_name
         });
@@ -67,13 +66,5 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
     const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(`${frontendURL}/?token=${token}`);
 });
-
-// Facebook authentication
-// router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
-//
-// router.get('/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login', session: false }), (req, res) => {
-//     const token = generateToken(req.user);
-//     res.redirect(`/?token=${token}`);
-// });
 
 module.exports = router;

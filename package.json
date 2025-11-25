@@ -42,6 +42,7 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "resend": "^6.5.2",
+    "sendpulse-api": "^1.1.7",
     "sequelize": "^6.37.7",
     "uuid": "^13.0.0"
   }
