@@ -32,10 +32,6 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    facebook_id:{
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
     password: {
         type: DataTypes.STRING(255),
         allowNull: true,
