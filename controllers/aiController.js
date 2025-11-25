@@ -2,24 +2,36 @@ const OpenAI = require('openai');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
+    baseURL: "[https://openrouter.ai/api/v1](https://openrouter.ai/api/v1)",
 });
 
-// Helper to ensure we get clean JSON
+
+// This extracts ONLY the JSON part (between { } or [ ]) and ignores chatty text.
 const cleanAndParse = (text) => {
     try {
-        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleaned);
+        // 1. Try finding a JSON array first (for generateSurvey)
+        const arrayMatch = text.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+            return JSON.parse(arrayMatch[0]);
+        }
+
+        // 2. Try finding a JSON object (for refineQuestion or wrapped responses)
+        const objectMatch = text.match(/\{[\s\S]*\}/);
+        if (objectMatch) {
+            return JSON.parse(objectMatch[0]);
+        }
+
+
+        return JSON.parse(text);
     } catch (e) {
-        console.error("JSON Parse Error:", text);
-        throw new Error("AI returned invalid JSON format");
+        console.error("JSON Parse Error. Raw AI Output:", text);
+        throw new Error("AI returned invalid format. Check server logs for raw output.");
     }
 };
 
 exports.generateSurvey = async (req, res) => {
     const { title, description, existing_questions } = req.body;
 
-    // 1. Parse Existing Questions
     let historyContext = "No questions created yet. Start from the beginning.";
 
     if (existing_questions && Array.isArray(existing_questions) && existing_questions.length > 0) {
@@ -30,7 +42,6 @@ exports.generateSurvey = async (req, res) => {
         historyContext = `THE FOLLOWING QUESTIONS ALREADY EXIST (DO NOT REPEAT THEM):\n${questionList}`;
     }
 
-
     const taskInstruction = existing_questions && existing_questions.length > 0
         ? "Generate 5 NEW follow-up questions. They must be distinct from the existing list. Dig deeper into the topic."
         : "Generate 5 introductory questions to start the survey.";
@@ -38,7 +49,9 @@ exports.generateSurvey = async (req, res) => {
     try {
         const completion = await openai.chat.completions.create({
             model: "x-ai/grok-4.1-fast:free",
-            response_format: { type: "json_object" },
+
+
+
             messages: [
                 {
                     role: "system",
@@ -50,17 +63,17 @@ Your goal is to expand a survey without repeating existing questions.
 2. **Lengths**: "question_text" < 500 chars. "option_text" < 255 chars.
 3. **Required**: Set "is_required" to true only for essential data.
 
-### OUTPUT JSON
-{
-  "questions": [
-    {
-      "question_text": "String",
-      "question_type": "Enum",
-      "is_required": boolean,
-      "options": [ { "option_text": "String" } ]
-    }
-  ]
-}
+### OUTPUT FORMAT
+Return ONLY a raw JSON array. Do not write "Here is the JSON". Just the array.
+Example:
+[
+  {
+    "question_text": "...",
+    "question_type": "multiple_choice",
+    "is_required": false,
+    "options": [ { "option_text": "..." } ]
+  }
+]
 
 ### LOGIC RULES
 1. **No Duplicates**: Compare against the "ALREADY EXIST" list.
@@ -82,11 +95,11 @@ ${historyContext}
 
         const parsedData = cleanAndParse(completion.choices[0].message.content);
 
-        // Handle root object or array
-        const questionsArray = parsedData.questions || parsedData;
+        const questionsArray = Array.isArray(parsedData) ? parsedData : (parsedData.questions || []);
 
-        if (!Array.isArray(questionsArray)) {
-            return res.status(500).json({ message: "AI format error: Expected array." });
+        if (!Array.isArray(questionsArray) || questionsArray.length === 0) {
+            console.error("AI returned valid JSON but not an array:", parsedData);
+            return res.status(500).json({ message: "AI format error: Expected an array of questions." });
         }
 
         res.json(questionsArray);
@@ -107,13 +120,15 @@ exports.refineQuestion = async (req, res) => {
     try {
         const completion = await openai.chat.completions.create({
             model: "x-ai/grok-4.1-fast:free",
-            response_format: { type: "json_object" },
             messages: [
                 {
                     role: "system",
                     content: `You are an expert Survey Editor. Refine the question to be unbiased, clear, and professional.
                     Fix grammar. Ensure options are mutually exclusive.
-                    Return JSON format: { "question_text": "...", "options": [{ "option_text": "..." }] }`
+                    
+                    OUTPUT FORMAT:
+                    Return ONLY a single raw JSON object. No markdown.
+                    { "question_text": "...", "options": [{ "option_text": "..." }] }`
                 },
                 {
                     role: "user",
