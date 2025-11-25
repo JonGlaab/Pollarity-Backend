@@ -141,11 +141,28 @@ router.get('/', async (req, res) => {
             where: {
                 [Op.and]: [{ status: 'published' }, { is_public: true }]
             },
-            attributes: ['survey_id', 'title', 'createdAt', 'nice_url'],
+            attributes: [
+                'survey_id',
+                'title',
+                'createdAt',
+                'nice_url',
+                [sequelize.literal(`(SELECT COUNT(*) FROM questions WHERE questions.survey_id = Survey.survey_id)`), 'question_count']
+            ],
             include: [{ model: db.User, attributes: ['first_name', 'last_name'] }],
             order: [['createdAt', 'DESC']],
         });
-        return res.status(200).json(surveys);
+
+        // Map to a plain object with an integer question_count for the client
+        const out = surveys.map(s => ({
+            survey_id: s.survey_id,
+            title: s.title,
+            createdAt: s.createdAt,
+            nice_url: s.nice_url,
+            User: s.User,
+            question_count: Number(s.get ? s.get('question_count') || 0 : (s.question_count || 0))
+        }));
+
+        return res.status(200).json(out);
     } catch (error) {
         console.error("Error fetching surveys:", error);
         return res.status(500).json({ error: "Failed to fetch surveys." });
@@ -252,7 +269,7 @@ router.put('/:niceUrl', [authenticateJWT, checkBanned], async (req, res) => {
         await survey.save({ transaction: t });
 
         // Delete existing questions and options
-        await Question.destroy({ where: { survey_id: survey.survey_id }, transaction: t });
+        //await Question.destroy({ where: { survey_id: survey.survey_id }, transaction: t });
 
         // Recreate questions and options
         if (Array.isArray(questions)) {
@@ -572,10 +589,28 @@ router.get('/:id/aggregates', authenticateJWT, async (req, res) => {
                     qObj.cooccurrence = coRows.map(r => ({ a: r.a, b: r.b, count: parseInt(r.count, 10) }));
                 }
             } else if (q.question_type === 'short_answer') {
-                // collect recent text responses (limit 50)
-                const texts = await Response.findAll({ where: { question_id: q.question_id }, attributes: ['response_text'], limit: 50, order: [['response_id', 'DESC']], raw: true });
-                qObj.data = texts.map(t => t.response_text);
-                qObj.total_answers = texts.length;
+                // collect recent text responses (limit 200)
+                const texts = await Response.findAll({ where: { question_id: q.question_id }, attributes: ['response_text'], limit: 200, order: [['response_id', 'DESC']], raw: true });
+                const responses = texts.map(t => (t.response_text || '').trim()).filter(Boolean);
+                qObj.data = responses.slice(0, 50); // keep up to 50 sample responses
+                qObj.total_answers = responses.length;
+
+                // Build a simple word frequency map for a word-map visualization
+                const stopwords = new Set(["the","and","a","an","to","of","in","is","it","that","this","for","on","with","as","are","was","but","or","be","by","not","you","your","i","we","they","my","me","so","if","at","from","have","has","had"]);
+                const wordCounts = Object.create(null);
+                for (const r of responses) {
+                    // split on non-word characters, ignore short tokens
+                    const tokens = r.toLowerCase().split(/[^\p{L}0-9]+/u).filter(Boolean);
+                    for (const tkn of tokens) {
+                        if (tkn.length < 2) continue;
+                        if (stopwords.has(tkn)) continue;
+                        wordCounts[tkn] = (wordCounts[tkn] || 0) + 1;
+                    }
+                }
+
+                // convert to sorted array of top words (limit 40)
+                const wordMap = Object.entries(wordCounts).map(([word, count]) => ({ word, count })).sort((a, b) => b.count - a.count).slice(0, 40);
+                qObj.word_map = wordMap;
             }
 
             questionsOut.push(qObj);

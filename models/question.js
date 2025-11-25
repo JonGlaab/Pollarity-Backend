@@ -25,7 +25,15 @@ const Question = sequelize.define('Question', {
     is_required: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
-    }
+    },
+        survey_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'surveys',
+            key: 'survey_id'
+        },
+    },
 }, {
     tableName: 'questions',
     timestamps: false,
