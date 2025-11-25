@@ -101,7 +101,7 @@ Elizabeth
   What impediments are blocking me? - server not updating with commits
 
 Jonathan
-  What did I do yesterday? - created a survew view for answering. connected to nicURL
+  What did I do yesterday? - created a survey view for answering. connected to nicURL
   What will I do today? - survey stats, closing surveys, hopefully emailing
   What impediments are blocking me? - only myself
 
@@ -128,16 +128,16 @@ Elizabeth
 
   2025-09-25
   Minh
-    What did I do yesterday?
-    What will I do today?
-    What impediments are blocking me?
+    What did I do yesterday? - Debugging AI. Nav-bar.
+    What will I do today? - Continue debugging AI and nav bar.
+    What impediments are blocking me? - Program bugs. Had to change AI API because the other one wasn't working.
 
   Jonathan
-    What did I do yesterday?
-    What will I do today?
-    What impediments are blocking me?
+    What did I do yesterday? Tried to get email working.
+    What will I do today? - Working on getting the email to work.
+    What impediments are blocking me? - Had to research why it wasn't working.
 
   Elizabeth
-    What did I do yesterday?
-    What will I do today?
-    What impediments are blocking me?
+    What did I do yesterday? - Got the profile photo to update and save to storage. Added some surveys.
+    What will I do today? - Presentation power point outline.
+    What impediments are blocking me? - Program bugs.
