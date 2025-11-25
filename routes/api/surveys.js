@@ -268,9 +268,6 @@ router.put('/:niceUrl', [authenticateJWT, checkBanned], async (req, res) => {
         survey.publishedAt = status === 'published' ? new Date() : survey.publishedAt;
         await survey.save({ transaction: t });
 
-        // Delete existing questions and options
-        //await Question.destroy({ where: { survey_id: survey.survey_id }, transaction: t });
-
         // Recreate questions and options
         if (Array.isArray(questions)) {
             for (const [qIndex, q] of questions.entries()) {
@@ -373,60 +370,6 @@ router.get('/:niceUrl/submission', [authenticateJWT, checkBanned], async (req, r
     }
 });
 
-// POST /api/surveys/:niceUrl/submit - submit responses to a survey
-// Signed-in users may only have one submission; additional submits update their existing submission.
-router.post('/:niceUrl/submit', async (req, res, next) => {
-    try {
-        const { niceUrl } = req.params;
-        const { answers } = req.body; // expected: array of responses
-
-        const survey = await Survey.findOne({ where: { nice_url: niceUrl, status: 'published' } });
-        if (!survey) return res.status(404).json({ error: 'Survey not found or not accepting responses' });
-
-        // Try to authenticate user if token present (optional)
-        passport.authenticate('jwt', { session: false }, async (err, user) => {
-            if (err) return next(err);
-            const t = await sequelize.transaction();
-            try {
-                const submissionData = { survey_id: survey.survey_id };
-                if (user) submissionData.user_id = user.user_id;
-
-                const newSubmission = await Submission.create(submissionData, { transaction: t });
-
-                // normalize answers array and create Response rows
-                if (Array.isArray(answers)) {
-                    for (const a of answers) {
-                        // a may represent a single response (for radio/text) or multiple (for checkboxes we expect multiple entries)
-                        const responseRow = {
-                            submission_id: newSubmission.submission_id,
-                            question_id: a.question_id,
-                            response_text: a.response_text || null,
-                            selected_option_id: a.selected_option_id || null
-                        };
-                        await Response.create(responseRow, { transaction: t });
-                    }
-                }
-
-                // mark survey has_answers true
-                if (!survey.has_answers) {
-                    survey.has_answers = true;
-                    await survey.save({ transaction: t });
-                }
-
-                await t.commit();
-                return res.status(201).json({ message: 'Submission saved' });
-            } catch (error) {
-                await t.rollback();
-                console.error('Error saving submission:', error);
-                return res.status(500).json({ error: 'Failed to save submission' });
-            }
-        })(req, res, next);
-
-    } catch (error) {
-        console.error('Submission endpoint error:', error);
-        return res.status(500).json({ error: 'Failed to process submission' });
-    }
-});
 //>>>>>
 
 // GET /api/surveys/:id/results: FETCH ANALYTICS
@@ -454,8 +397,6 @@ router.get('/:id/results', authenticateJWT, async (req, res) => {
         if (survey.creator_user_id !== userId) {
             return res.status(403).json({ error: "Access denied. You are not the creator of this survey." });
         }
-
-
 
         const submissions = await Submission.findAll({
             where: { survey_id: surveyId },
@@ -544,6 +485,13 @@ router.get('/:id/aggregates', authenticateJWT, async (req, res) => {
             ],
             raw: true
         });
+        //>>> redundant with Louis' survey data?
+        const allSubmissions = await Submission.findAll({
+            where: { survey_id: surveyId },
+            attributes: ['submitted_at'],
+            order: [['submitted_at', 'ASC']],
+            raw: true
+        });
 
         const survey = await Survey.findOne({ where: { survey_id: surveyId }, include: [{ model: Question, include: [Option], order: [['question_order', 'ASC']] }] });
         if (!survey) return res.status(404).json({ error: 'Survey not found' });
@@ -616,12 +564,19 @@ router.get('/:id/aggregates', authenticateJWT, async (req, res) => {
             questionsOut.push(qObj);
         }
 
-        return res.json({ survey_id: survey.survey_id, survey_title: survey.title, kpis: kpiRow, questions: questionsOut });
+        return res.json({
+            survey_id: survey.survey_id,
+            survey_title: survey.title,
+            kpis: kpiRow,
+            questions: questionsOut,
+            submission_dates: allSubmissions.map(s => s.submitted_at)
+        });
     } catch (error) {
         console.error('Aggregates error:', error);
         return res.status(500).json({ error: 'Failed to compute aggregates' });
     }
 });
+//>>> end redundant?
 
 //GET DATA TO EXPORT
 const fetchSurveyRawData = async (surveyId, userId, userRole) => {
