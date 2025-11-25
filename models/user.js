@@ -32,10 +32,6 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    facebook_id:{
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
     password: {
         type: DataTypes.STRING(255),
         allowNull: true,
@@ -80,11 +76,6 @@ const User = sequelize.define('User', {
             fields: ['google_id'],
             name: 'unique_google_id'
         },
-        {
-            unique: true,
-            fields: ['facebook_id'],
-            name: 'unique_facebook_id'
-        }
     ],
     hooks: {
         beforeValidate: (user) => {
