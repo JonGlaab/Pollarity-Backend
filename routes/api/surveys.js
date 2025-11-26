@@ -170,14 +170,12 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/surveys/mine - Authenticated: fetch surveys created by current user
-router.get('/mine', [authenticateJWT, checkBanned], async (req, res) => {
+router.get('/mine', [authenticateJWT], async (req, res) => {
     try {
-        // Support multiple user shapes: passport may attach a Sequelize model or a plain object
         let userId = null;
         if (req.user) {
             userId = req.user.user_id || req.user.id || (req.user.dataValues && (req.user.dataValues.user_id || req.user.dataValues.id));
         }
-        // fallback to token payload if middleware decoded it
         if (!userId && req.tokenPayload && req.tokenPayload.user_id) {
             userId = req.tokenPayload.user_id;
         }
@@ -672,7 +670,7 @@ router.get('/:id/aggregates', authenticateJWT, async (req, res) => {
 //>>> end redundant?
 
 //GET DATA TO EXPORT
-const fetchSurveyRawData = async (surveyId, userId, userRole) => {
+const fetchSurveyRawData = async (surveyId, userId) => {
     const survey = await Survey.findOne({
         where: { survey_id: surveyId },
         include: [{ model: Question, order: [['question_order', 'ASC']] }]
@@ -702,7 +700,7 @@ const fetchSurveyRawData = async (surveyId, userId, userRole) => {
 }
 
 //EXPORT TO CSV
-router.get('/:id/export/csv', [authenticateJWT, checkBanned], async (req, res) => {
+router.get('/:id/export/csv', [authenticateJWT], async (req, res) => {
     try {
 
         const { survey, submissions } = await fetchSurveyRawData(req.params.id, req.user.user_id);
@@ -747,7 +745,7 @@ router.get('/:id/export/csv', [authenticateJWT, checkBanned], async (req, res) =
 });
 
 //EXPORT TO EXCEL
-router.get('/:id/export/excel', [authenticateJWT, checkBanned], async (req, res) => {
+router.get('/:id/export/excel', [authenticateJWT], async (req, res) => {
     try {
 
         const { survey, submissions } = await fetchSurveyRawData(req.params.id, req.user.user_id);
