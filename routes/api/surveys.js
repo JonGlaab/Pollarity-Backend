@@ -371,7 +371,6 @@ router.get('/:niceUrl/submission', [authenticateJWT, checkBanned], async (req, r
 });
 
 //>>>>>
-
 // POST /api/surveys/:niceUrl/submit - submit responses to a survey
 // Signed-in users may only have one submission; additional submits update their existing submission.
 router.post('/:niceUrl/submit', async (req, res, next) => {

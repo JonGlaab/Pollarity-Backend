@@ -1,3 +1,4 @@
+require("dotenv").config();
 const {DataTypes} = require('sequelize');
 const sequelize = require('../config/db');
 const bcrypt = require('bcrypt');
@@ -75,12 +76,12 @@ const User = sequelize.define('User', {
             unique: true,
             fields: ['google_id'],
             name: 'unique_google_id'
-        },
+        }
     ],
     hooks: {
         beforeValidate: (user) => {
 
-            if (!user.google_id && !user.facebook_id && !user.password) {
+            if (!user.google_id && !user.password) {
                 throw new Error('Password is required for local accounts.');
             }
         },
@@ -90,11 +91,20 @@ const User = sequelize.define('User', {
                 user.password = await bcrypt.hash(user.password, salt);
             }
         },
-        afterCreate: async (user, options) => {
+       afterCreate: (user) => {
             try {
-                await sendWelcomeEmail(user.email, user.first_name);
-            } catch (error) {
-                console.error('Failed to send welcome email:', error);
+                sendWelcomeEmail(user.email, user.first_name)
+                    .then(result => {
+                        if (!result) {
+                            console.error("⚠️ Welcome email failed for:", user.email);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("🔥 Critical welcome email failure:", err);
+                    });
+
+            } catch (err) {
+                console.error("🔥 afterCreate hook error:", err);
             }
         }
     }
