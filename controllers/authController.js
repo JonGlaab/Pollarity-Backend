@@ -42,7 +42,7 @@ exports.register = [
 
             const token = generateJwtToken(user);
 
-            
+
             res.status(201).json({
                 token,
                 user: {
