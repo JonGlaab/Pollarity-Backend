@@ -240,8 +240,6 @@ router.get('/:niceUrl/edit', [authenticateJWT, checkBanned], async (req, res) =>
     }
 });
 
-// PUT /api/surveys/:niceUrl - Authenticated: update survey (replace questions/options)
-// NOTE: uses PUT /:niceUrl (method differs from GET) and must be placed before GET /:niceUrl
 router.put('/:niceUrl', [authenticateJWT, checkBanned], async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -268,24 +266,63 @@ router.put('/:niceUrl', [authenticateJWT, checkBanned], async (req, res) => {
         survey.publishedAt = status === 'published' ? new Date() : survey.publishedAt;
         await survey.save({ transaction: t });
 
-        // Recreate questions and options
+        // Process questions and options
         if (Array.isArray(questions)) {
             for (const [qIndex, q] of questions.entries()) {
-                const newQuestion = await Question.create({
-                    survey_id: survey.survey_id,
-                    question_text: q.question_text,
-                    question_type: q.question_type,
-                    question_order: q.question_order || qIndex + 1,
-                    is_required: q.is_required || false
-                }, { transaction: t });
+                // Check if the question already exists
+                const existingQuestion = await Question.findOne({
+                    where: {
+                        survey_id: survey.survey_id,
+                        question_text: q.question_text
+                    },
+                    transaction: t
+                });
 
+                let newQuestion;
+                if (existingQuestion) {
+                    // Update existing question
+                    existingQuestion.question_text = q.question_text;
+                    existingQuestion.question_type = q.question_type;
+                    existingQuestion.question_order = q.question_order || qIndex + 1;
+                    existingQuestion.is_required = q.is_required || false;
+                    newQuestion = await existingQuestion.save({ transaction: t });
+                } else {
+                    // Create new question if not exists
+                    newQuestion = await Question.create({
+                        survey_id: survey.survey_id,
+                        question_text: q.question_text,
+                        question_type: q.question_type,
+                        question_order: q.question_order || qIndex + 1,
+                        is_required: q.is_required || false
+                    }, { transaction: t });
+                }
+
+                // Process options for the question
                 if (Array.isArray(q.options) && q.options.length > 0) {
-                    const optionsToSave = q.options.map((opt, optIndex) => ({
-                        question_id: newQuestion.question_id,
-                        option_text: opt.option_text,
-                        option_order: opt.option_order || optIndex + 1
-                    }));
-                    await Option.bulkCreate(optionsToSave, { transaction: t });
+                    for (const [optIndex, opt] of q.options.entries()) {
+                        // Check if the option already exists
+                        const existingOption = await Option.findOne({
+                            where: {
+                                question_id: newQuestion.question_id,
+                                option_text: opt.option_text
+                            },
+                            transaction: t
+                        });
+
+                        if (existingOption) {
+                            // Update existing option
+                            existingOption.option_text = opt.option_text;
+                            existingOption.option_order = opt.option_order || optIndex + 1;
+                            await existingOption.save({ transaction: t });
+                        } else {
+                            // Create new option if not exists
+                            await Option.create({
+                                question_id: newQuestion.question_id,
+                                option_text: opt.option_text,
+                                option_order: opt.option_order || optIndex + 1
+                            }, { transaction: t });
+                        }
+                    }
                 }
             }
         }
@@ -438,7 +475,6 @@ router.get('/:id/results', authenticateJWT, async (req, res) => {
         const surveyId = req.params.id;
         const userId = req.user.user_id;
 
-
         const survey = await Survey.findOne({
             where: { survey_id: surveyId },
             include: [
@@ -453,7 +489,6 @@ router.get('/:id/results', authenticateJWT, async (req, res) => {
             return res.status(404).json({ error: "Survey not found" });
         }
 
-
         if (survey.creator_user_id !== userId) {
             return res.status(403).json({ error: "Access denied. You are not the creator of this survey." });
         }
@@ -466,8 +501,6 @@ router.get('/:id/results', authenticateJWT, async (req, res) => {
         });
 
         const submissionDates = submissions.map(s => s.submitted_at);
-
-
 
         const results = await Promise.all(survey.Questions.map(async (question) => {
             const questionData = {
