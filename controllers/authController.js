@@ -41,27 +41,25 @@ exports.register = [
             });
 
             const token = generateJwtToken(user);
-            res.status(201).json({ token });
+
+            
+            res.status(201).json({
+                token,
+                user: {
+                    id: user.user_id,
+                    email: user.email,
+                    role: user.role,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    user_photo_url: user.user_photo_url
+                }
+            });
 
         } catch (error) {
             res.status(500).json({ message: 'Server error', error: error.message });
         }
     }
 ];
-
-//
-// exports.login = (req, res, next) => {
-//     passport.authenticate('local', { session: false }, (err, user, info) => {
-//         if (err) {
-//             return next(err);
-//         }
-//         if (!user) {
-//             return res.status(400).json({ message: info.message });
-//         }
-//         const token = generateJwtToken(user);
-//         return res.json({ token });
-//     })(req, res, next);
-// };
 
 exports.login = (req, res, next) => {
     passport.authenticate('local', { session: false }, (err, user, info) => {
@@ -72,18 +70,18 @@ exports.login = (req, res, next) => {
             return res.status(400).json({ message: info.message || "Login failed" });
         }
 
-        // Success path
         const token = generateJwtToken(user);
 
-        // Ensure the response is always a complete JSON object
-        // with the token and a user object (if the frontend expects it).
+
         return res.json({
             token: token,
             user: {
                 id: user.user_id,
                 email: user.email,
                 role: user.role,
-                firstName: user.first_name // Add essential user data
+                first_name: user.first_name,
+                last_name: user.last_name,
+                user_photo_url: user.user_photo_url
             },
             message: "Login successful"
         });
@@ -110,28 +108,6 @@ exports.googleCallback = (req, res, next) => {
         res.redirect(`/?token=${token}`);
     })(req, res, next);
 };
-
-
-// exports.facebookLogin = passport.authenticate('facebook', { scope: ['email'] });
-//
-// exports.facebookCallback = (req, res, next) => {
-//     passport.authenticate('facebook', { session: false }, (err, user, info) => {
-//         if (err) {
-//             return next(err);
-//         }
-//         if (!user) {
-//             return res.redirect('/login');
-//         }
-//
-//         if (!user.first_name || !user.last_name) {
-//             const registrationToken = jwt.sign({ temp_id: user.id, provider: 'facebook' }, process.env.JWT_SECRET, { expiresIn: '15m' });
-//             return res.redirect(`/complete-registration?token=${registrationToken}`);
-//         }
-//
-//         const token = generateJwtToken(user);
-//         res.redirect(`/?token=${token}`);
-//     })(req, res, next);
-// };
 
 exports.completeRegistration = [
     check('first_name').not().isEmpty().withMessage('First name is required.'),
