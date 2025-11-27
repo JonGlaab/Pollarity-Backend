@@ -82,7 +82,8 @@ exports.login = (req, res, next) => {
                 role: user.role,
                 first_name: user.first_name,
                 last_name: user.last_name,
-                user_photo_url: user.user_photo_url
+                user_photo_url: user.user_photo_url,
+                isBanned: user.isBanned
             },
             message: "Login successful"
         });

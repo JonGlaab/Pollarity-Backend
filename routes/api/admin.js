@@ -10,7 +10,7 @@ const Survey=db.Survey;
 router.get('/users', [authenticateJWT, isAdmin], async (req, res) => {
     try {
         const users = await User.findAll({
-            attributes: ['user_id', 'first_name', 'last_name', 'email', 'role', 'isBanned', 'createdAt']
+            attributes: ['user_id', 'first_name', 'last_name', 'email', 'role', 'isBanned']
         });
         res.json(users);
     } catch (error) {

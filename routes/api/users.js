@@ -41,7 +41,7 @@ const generatePresignedUrl = async (photoUrl) => {
 router.get('/me', authenticateJWT, async (req, res) => {
     try {
         const user = await User.findByPk(req.user.user_id, {
-            attributes: ['first_name', 'last_name', 'email', 'user_photo_url']
+            attributes: ['first_name', 'last_name', 'email', 'user_photo_url','isBanned']
         });
         if (!user) return res.status(404).json({ error: 'User not found.' });
         const presignedUrl = await generatePresignedUrl(user.user_photo_url);
@@ -49,7 +49,8 @@ router.get('/me', authenticateJWT, async (req, res) => {
             first_name: user.first_name,
             last_name: user.last_name,
             email: user.email,
-            user_photo_url: presignedUrl
+            user_photo_url: presignedUrl,
+            isBanned: user.isBanned
         });
     } catch (error) {
         console.error('Error fetching user profile:', error);
