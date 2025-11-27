@@ -133,7 +133,7 @@ Elizabeth
     What impediments are blocking me? - Program bugs. Had to change AI API because the other one wasn't working.
 
   Jonathan
-    What did I do yesterday? Tried to get email working.
+    What did I do yesterday? - Tried to get email working.
     What will I do today? - Working on getting the email to work.
     What impediments are blocking me? - Had to research why it wasn't working.
 
@@ -144,19 +144,19 @@ Elizabeth
 
 2025-09-26
 Minh
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? - Debugging AI integration and Navbar
+  What will I do today? - Finish Admin dashboard with banned list functionality. Work on power point presentation.
+  What impediments are blocking me? - None.
 
 Jonathan
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? - Worked on email. Contacted provider support.
+  What will I do today? Debug user name and profile photo when logged in. Work on power point presentation.
+  What impediments are blocking me? - None
 
 Elizabeth
-  What did I do yesterday?
-  What will I do today?
-  What impediments are blocking me?
+  What did I do yesterday? Power point outline. Testing.
+  What will I do today? Update other pages with a blue bar to match home page. Work on power point presentation.
+  What impediments are blocking me? - None
 
 2025-09-27
 Minh
