@@ -50,11 +50,24 @@ router.post('/login', (req, res, next) => {
         if (err || !user) {
             return res.status(400).json({
                 message: info ? info.message : 'Login failed',
-                user   : user
+                user: user
             });
         }
         const token = generateToken(user);
-        return res.json({ token });
+
+        return res.json({
+            token,
+            user: {
+                id: user.user_id,
+                email: user.email,
+                role: user.role,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                user_photo_url: user.user_photo_url
+            }
+        });
+
+
     })(req, res, next);
 });
 
