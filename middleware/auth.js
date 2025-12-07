@@ -25,7 +25,7 @@ const authenticateJWT = (req, res, next) => {
                 }
             }
         } catch (e) {
-            // don't block authentication on token decode errors; just log
+
             console.warn('Failed to decode JWT in authenticateJWT middleware', e.message);
         }
         next();

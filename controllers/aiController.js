@@ -50,7 +50,7 @@ exports.generateSurvey = async (req, res) => {
     let avoidList = "";
 
     if (existing_questions && existing_questions.length > 0) {
-        // We take the last 15 questions for context to ensure flow
+        
         const recentQuestions = existing_questions.slice(-15);
         const questionList = recentQuestions
             .map((q, i) => `- ${q.question_text || q}`)
@@ -118,8 +118,7 @@ REMINDER: JSON ONLY. No markdown formatting. No conversational text.`
         const rawContent = completion.choices[0].message.content;
         const parsedData = cleanAndParse(rawContent);
 
-        // Normalize: Llama 3.3 might return the array directly or wrapped in { questions: [] }
-        // We check for both to be safe.
+
         const finalQuestions = Array.isArray(parsedData)
             ? parsedData
             : (parsedData.questions || parsedData.data || []);
